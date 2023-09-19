@@ -1,6 +1,7 @@
 #include "ob_index_usage_report_task.h"
 #include "lib/ob_errno.h"
 #include "share/rc/ob_tenant_base.h"
+#include "ob_index_usage_info_mgr.h"
 
 #define USING_LOG_PREFIX SERVER
 using namespace oceanbase::common;
@@ -24,7 +25,7 @@ void ObIndexUsageReportTask::destroy() {
 void ObIndexUsageReportTask::runTimerTask() {
   ObIndexUsageInfoMgr* mgr =  MTL(ObIndexUsageInfoMgr*);
   // todo: write data
-
+  
 }
 
 }

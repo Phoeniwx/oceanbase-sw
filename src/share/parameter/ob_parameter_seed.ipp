@@ -1639,7 +1639,7 @@ DEF_BOOL(_iut_enable, OB_CLUSTER_PARAMETER, "True",
 
 DEF_INT(_iut_max_entries, OB_CLUSTER_PARAMETER, "30000", "[0,]",
     "maximum of index entries to be monitoring.",
-    ObParameterAttr(Section::OBSERVER, Source::DEFAULT, EditLevel::DYNAMIC_EFFECTIVE))
+    ObParameterAttr(Section::TENANT, Source::DEFAULT, EditLevel::DYNAMIC_EFFECTIVE))
 
 DEF_STR(_iut_stat_collection_type, OB_CLUSTER_PARAMETER, "SAMPLE", 
     "specify index table usage stat collection type",
