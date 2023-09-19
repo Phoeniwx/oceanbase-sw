@@ -2,6 +2,7 @@
 #define SRC_SHARE_INDEX_USAGE_OB_INDEX_USAGE_REPORT_TASK_H_
 
 #include "lib/mysqlclient/ob_mysql_proxy.h"
+#include "lib/allocator/ob_fifo_allocator.h"
 #include "lib/ob_define.h"
 
 namespace oceanbase {
@@ -21,6 +22,7 @@ private:
   virtual void runTimerTask();
 private:
   bool is_inited_;
+  common::ObFIFOAllocator allocator_;
   common::ObMySQLProxy *sql_proxy_;	// 写入内部表需要 sql proxy
 };
 }

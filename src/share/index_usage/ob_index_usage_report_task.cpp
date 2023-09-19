@@ -6,27 +6,43 @@
 #define USING_LOG_PREFIX SERVER
 using namespace oceanbase::common;
 
-namespace oceanbase {
-namespace share {
+namespace oceanbase
+{
+  namespace share
+  {
 
-ObIndexUsageReportTask::ObIndexUsageReportTask()
-    : is_inited_(false), sql_proxy_(nullptr) {}
+    ObIndexUsageReportTask::ObIndexUsageReportTask()
+        : is_inited_(false), allocator_(MTL_ID()), sql_proxy_(nullptr) {}
 
-int ObIndexUsageReportTask::init(common::ObMySQLProxy &sql_proxy) {
-  int ret = OB_SUCCESS;
-  // todo: init
-  return ret; 
-}
+    int ObIndexUsageReportTask::init(common::ObMySQLProxy &sql_proxy)
+    {
+      int ret = OB_SUCCESS;
+      // todo: init
+      return ret;
+    }
 
-void ObIndexUsageReportTask::destroy() {
-  // todo: destroy
-}
+    void ObIndexUsageReportTask::destroy()
+    {
+      // todo: destroy
+    }
 
-void ObIndexUsageReportTask::runTimerTask() {
-  ObIndexUsageInfoMgr* mgr =  MTL(ObIndexUsageInfoMgr*);
-  // todo: write data
-  
-}
+    void ObIndexUsageReportTask::runTimerTask()
+    {
 
-}
+      ObIndexUsageInfoMgr *mgr = MTL(ObIndexUsageInfoMgr *);
+      
+      // todo: write data
+      common::ObList<ObIndexUsageInfoMgr::ObIndexUsagePair> result_list(allocator_);
+
+      mgr->sample(result_list);
+
+      mgr->release_node(result_list.begin()->second);
+      
+      //mgr->sample()
+
+
+      result_list.destroy();
+      //result_list.begin()
+    }
+  }
 }
