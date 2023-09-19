@@ -80,11 +80,11 @@ private:
 class ObIndexUsageInfoMgr
 {
 typedef common::hash::ObHashMap<ObIndexUsageKey*, ObIndexUsageInfo*, common::hash::ReadWriteDefendMode> ObIndexUsageHashMap;
-typedef common::hash::HashMapPair<const ObIndexUsageKey*, ObIndexUsageInfo*> ObIndexUsagePair;
 static const int64_t SAMPLE_RATIO = 50;	// 采样模式下的采样比例，50 表示 50%
 static const int64_t DEFAULT_MAX_HASH_BUCKET_CNT = 10000;
 
 public:
+  typedef common::hash::HashMapPair<const ObIndexUsageKey*, ObIndexUsageInfo*> ObIndexUsagePair;
   static int mtl_init(ObIndexUsageInfoMgr *&index_usage_mgr);
   static void mtl_destroy(ObIndexUsageInfoMgr *&index_usage_mgr);
   ObIndexUsageInfoMgr();
