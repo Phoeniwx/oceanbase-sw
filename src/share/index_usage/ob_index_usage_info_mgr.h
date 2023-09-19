@@ -77,7 +77,7 @@ private:
   DISALLOW_COPY_AND_ASSIGN(ObIndexUsageOp);
 };
 
-class ObIndexUsageInfoMgr final
+class ObIndexUsageInfoMgr
 {
 typedef common::hash::ObHashMap<ObIndexUsageKey*, ObIndexUsageInfo*> ObIndexUsageHashMap;
 typedef common::hash::HashMapPair<const ObIndexUsageKey*, ObIndexUsageInfo*> ObIndexUsagePair;
