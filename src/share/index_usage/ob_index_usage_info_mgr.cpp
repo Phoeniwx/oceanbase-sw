@@ -2,6 +2,7 @@
 #include "lib/allocator/ob_allocator.h"
 #include "lib/allocator/ob_malloc.h"
 #include "lib/allocator/ob_page_manager.h"
+#include "lib/lock/ob_spin_rwlock.h"
 #include "lib/ob_define.h"
 #include "lib/ob_errno.h"
 #include "lib/oblog/ob_log_module.h"
@@ -44,8 +45,10 @@ void ObIndexUsageOp::operator() (common::hash::HashMapPair<ObIndexUsageKey*, ObI
 
 ObIndexUsageInfoMgr::ObIndexUsageInfoMgr()
     : is_inited_(false),
+      is_destroying_(false),
       index_usage_map_(),
-      spin_lock_(),
+      init_lock_(),
+      destory_lock_(),
       allocator_(MTL_ID()) 
 {}
 
@@ -76,7 +79,7 @@ void ObIndexUsageInfoMgr::mtl_destroy(ObIndexUsageInfoMgr *&index_usage_mgr) {
 int ObIndexUsageInfoMgr::init() {
   int ret = OB_SUCCESS;
   const ObMemAttr attr(MTL_ID(), OB_INDEX_USAGE_MANAGER);
-  SpinWLockGuard guard(spin_lock_);
+  SpinWLockGuard guard(init_lock_);
   if (OB_UNLIKELY(is_inited_)) {
     ret = OB_INIT_TWICE;
     LOG_WARN("init twice", K(ret));
@@ -91,6 +94,10 @@ int ObIndexUsageInfoMgr::init() {
 }
 
 void ObIndexUsageInfoMgr::destory() {
+  {
+    SpinWLockGuard guard(destory_lock_);
+    is_destroying_ = true;
+  }
   for (ObIndexUsageHashMap::iterator it=index_usage_map_.begin(); it != index_usage_map_.end(); it++) {
     allocator_.free(it->first);
     allocator_.free(it->second);
@@ -100,10 +107,22 @@ void ObIndexUsageInfoMgr::destory() {
 
 int ObIndexUsageInfoMgr::update(const int64_t database_id, const int64_t tenant_id, const int64_t index_table_id) {
   int ret = OB_SUCCESS;
+  if (!GCONF._iut_enable) {
+    return ret;
+  } else if (GCONF._iut_max_entries <= index_usage_map_.size()) {
+    ret = OB_ERROR;
+    LOG_WARN("index usage hashmap reach max entries", K(ret));
+    return ret;
+  } else if (is_destroying()) {
+    ret = OB_ERROR;
+    LOG_WARN("index usage mgr is destroying", K(ret));
+    return ret;
+  }
   ObIndexUsageKey temp_key(database_id, tenant_id, index_table_id);
   ObIndexUsageOp update_op(ObIndexUsageOpMode::UPDATE);
   ObIndexUsageKey* new_key = nullptr;
   ObIndexUsageInfo* new_info = nullptr;
+  SpinRLockGuard guard(destory_lock_);
   // suppose key exists, update it directory
   if (OB_FAIL(index_usage_map_.atomic_refactored(&temp_key, update_op))) {
     // key not exist, insert one
@@ -122,11 +141,6 @@ int ObIndexUsageInfoMgr::update(const int64_t database_id, const int64_t tenant_
       LOG_WARN("failed to update index-usage key", K(ret));
     }
   }
-  return ret;
-}
-
-int ObIndexUsageInfoMgr::get(const ObIndexUsageKey &key, const ObIndexUsageInfo &value) {
-  int ret = OB_SUCCESS;
   return ret;
 }
 
@@ -165,6 +179,12 @@ int ObIndexUsageInfoMgr::sample(common::ObList<ObIndexUsagePair>& pair_list) {
 
 int ObIndexUsageInfoMgr::del(ObIndexUsageKey* key) {
   int ret = OB_SUCCESS;
+  if (is_destroying()) {
+    int ret = OB_ERROR;
+    LOG_WARN("index usage mgr is destroying", K(ret));
+    return ret;
+  }
+  SpinRLockGuard guard(destory_lock_);
   ObIndexUsageInfo *const * info_ptr_ptr = index_usage_map_.get(const_cast<ObIndexUsageKey *const>(key));
   if (OB_ISNULL(info_ptr_ptr)) {
     LOG_WARN("index usage key not exists");
@@ -203,6 +223,17 @@ int ObIndexUsageInfoMgr::alloc_new_record(const ObIndexUsageKey& temp_key, ObInd
   return ret;
 }
 
+void ObIndexUsageInfoMgr::release_node(ObIndexUsageInfo *info) {
+  if (OB_NOT_NULL(info)) {
+    allocator_.free(info);
+    info = nullptr;
+  }
+}
+
+bool ObIndexUsageInfoMgr::is_destroying() {
+  SpinRLockGuard guard(destory_lock_);
+  return is_destroying_;
+}
 
 }
 }

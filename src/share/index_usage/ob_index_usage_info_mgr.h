@@ -79,7 +79,7 @@ private:
 
 class ObIndexUsageInfoMgr
 {
-typedef common::hash::ObHashMap<ObIndexUsageKey*, ObIndexUsageInfo*> ObIndexUsageHashMap;
+typedef common::hash::ObHashMap<ObIndexUsageKey*, ObIndexUsageInfo*, common::hash::ReadWriteDefendMode> ObIndexUsageHashMap;
 typedef common::hash::HashMapPair<const ObIndexUsageKey*, ObIndexUsageInfo*> ObIndexUsagePair;
 static const int64_t SAMPLE_RATIO = 50;	// 采样模式下的采样比例，50 表示 50%
 static const int64_t DEFAULT_MAX_HASH_BUCKET_CNT = 10000;
@@ -94,14 +94,20 @@ public:
   int init(); 	// 申请map内存，在创建索引之后调用
   void destory();	// 释放map，在observer析构时调用
   int update(const int64_t database_id, const int64_t tenant_id, const int64_t index_table_id);
-  int get(const ObIndexUsageKey &key, const ObIndexUsageInfo &value); // get之后增量数据重置
   int del(ObIndexUsageKey* key);
-  int sample(common::ObList<ObIndexUsagePair>& pair_list);
+  int sample(common::ObList<ObIndexUsagePair>& pair_list); // 采样哈希表
+  void release_node(ObIndexUsageInfo* info); // 用于task释放内存
+
+private:
+  bool is_destroying();
   int alloc_new_record(const ObIndexUsageKey& temp_key, ObIndexUsageKey* key, ObIndexUsageInfo* info);
+
 private:
   bool is_inited_;
+  bool is_destroying_;
   ObIndexUsageHashMap index_usage_map_;
-  common::SpinRWLock spin_lock_;
+  common::SpinRWLock init_lock_;
+  common::SpinRWLock destory_lock_;
   common::ObFIFOAllocator allocator_;
 };
 
