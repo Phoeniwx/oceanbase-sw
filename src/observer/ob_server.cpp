@@ -10,6 +10,7 @@
  * See the Mulan PubL v2 for more details.
  */
 
+#include "share/index_usage/ob_index_usage_report_task.h"
 #define USING_LOG_PREFIX SERVER
 
 #include "observer/ob_server.h"
@@ -199,7 +200,8 @@ ObServer::ObServer()
     conn_res_mgr_(),
     unix_domain_listener_(),
     disk_usage_report_task_(),
-    log_block_mgr_()
+    log_block_mgr_(),
+    index_usage_report_task_()
 #ifdef OB_BUILD_ARBITRATION
     ,arb_gcs_(),
     arb_timer_()
@@ -660,6 +662,10 @@ void ObServer::destroy()
     disk_usage_report_task_.destroy();
     FLOG_INFO("tenant disk usage report task destroyed");
 
+    FLOG_INFO("begin to destroy tenant index usage report task");
+    index_usage_report_task_.destroy();
+    FLOG_INFO("tenant index usage report task destroyed");
+
     FLOG_INFO("begin to destroy tmp file manager");
     ObTmpFileManager::get_instance().destroy();
     FLOG_INFO("tmp file manager destroyed");
@@ -964,6 +970,13 @@ int ObServer::start()
       LOG_ERROR("fail to schedule disk_usage_report_task_ task", KR(ret));
     } else {
       FLOG_INFO("success to schedule disk_usage_report_task_ task");
+    }
+
+    if (FAILEDx(TG_SCHEDULE(lib::TGDefIDs::IndexUsageReport,
+        index_usage_report_task_, ObIndexUsageReportTask::INDEX_USAGE_TASK_PERIOD, true))) {
+      LOG_ERROR("fail to schedule index_usage_report_task_ task", KR(ret));
+    } else {
+      FLOG_INFO("success to schedule index_usage_report_task_ task");
     }
 
     if (FAILEDx(ObActiveSessHistTask::get_instance().start())) {
@@ -2648,6 +2661,10 @@ int ObServer::init_storage()
       LOG_WARN("fail to init disk usage report task", KR(ret));
     } else if (OB_FAIL(TG_START(lib::TGDefIDs::DiskUseReport))) {
       LOG_WARN("fail to initialize disk usage report timer", KR(ret));
+    } else if (OB_FAIL(index_usage_report_task_.init(sql_proxy_))) {
+      LOG_WARN("fail to init index usage report task", KR(ret));
+    } else if (OB_FAIL(TG_START(lib::TGDefIDs::IndexUsageReport))) {
+      LOG_WARN("fail to initialize index usage report timer", KR(ret));
     }
   }
 
