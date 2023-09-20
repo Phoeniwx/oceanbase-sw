@@ -316,9 +316,7 @@ using ObTableScanIteratorObjPool = common::ObServerObjectPool<oceanbase::storage
       oceanbase::common::ObOptStatMonitorManager*,  \
       omt::ObTenantSrs*,                            \
       table::ObHTableLockMgr*,                      \
-      table::ObTTLService*,                         \
-      table::ObTableApiSessPoolMgr*          ,                         \
-      share::ObIndexUsageInfoMgr*                    \
+      table::ObTTLService*      \
   )
 
 
