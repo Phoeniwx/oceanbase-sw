@@ -10,7 +10,7 @@ namespace share {
 
 class ObIndexUsageReportTask : public common::ObTimerTask {
  public:
-  static const int64_t INDEX_USAGE_TASK_PERIOD = 15 * 60 * 1000L * 1000L;  // 15min
+  static const int64_t INDEX_USAGE_REPORT_INTERVAL = 15 * 60 * 1000L * 1000L;  // 15min
  public:
   ObIndexUsageReportTask();
   virtual ~ObIndexUsageReportTask(){};

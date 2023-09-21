@@ -973,7 +973,7 @@ int ObServer::start()
     }
 
     if (FAILEDx(TG_SCHEDULE(lib::TGDefIDs::IndexUsageReport,
-        index_usage_report_task_, ObIndexUsageReportTask::INDEX_USAGE_TASK_PERIOD, true))) {
+        index_usage_report_task_, ObIndexUsageReportTask::INDEX_USAGE_REPORT_INTERVAL, true))) {
       LOG_ERROR("fail to schedule index_usage_report_task_ task", KR(ret));
     } else {
       FLOG_INFO("success to schedule index_usage_report_task_ task");

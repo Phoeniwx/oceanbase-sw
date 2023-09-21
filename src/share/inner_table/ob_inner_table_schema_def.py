@@ -6301,36 +6301,11 @@ def_table_schema(
 # 485 : __all_clone_job
 # 486 : __all_clone_job_history
 
-# 484 : __all_index_usage_info
+# 487 : __all_index_usage_info
 def_table_schema(
   owner = 'yangjiali.yjl',
   table_name     = '__all_index_usage_info',
-  table_id       = '484',
-  table_type     = 'SYSTEM_TABLE',
-  gm_columns     = ['gmt_create', 'gmt_modified'],
-  rowkey_columns = [
-      ('tenant_id', 'int'),
-      ('table_id', 'int'),        # main table id
-      ('object_id', 'int')				# index table id
-  ],
-  in_tenant_space = True,
-  normal_columns = [
-      ('name', 'varchar:128'),			    # index table name
-      ('owner', 'varchar:128'),			    # user name
-      ('total_access_count', 'int'),		# true or false
-      ('total_exec_count', 'int'),		  # used count
-      ('total_rows_returned', 'int'),		# reserved.
-      ('start_used', 'timestamp'),		  # first time to used
-      ('last_used','timestamp'),			  # last time to use
-      ('last_flush_time', 'timestamp')  # last time to flush
-  ],
-)
-
-# 484 : __all_index_usage_info
-def_table_schema(
-  owner = 'yangjiali.yjl',
-  table_name     = '__all_index_usage_info',
-  table_id       = '484',
+  table_id       = '487',
   table_type     = 'SYSTEM_TABLE',
   gm_columns     = ['gmt_create', 'gmt_modified'],
   rowkey_columns = [
@@ -29931,6 +29906,7 @@ def_table_schema(
 #21479 GV$OB_CGROUP_CONFIG
 #21480 V$OB_CGROUP_CONFIG
 
+#21481 DBA_OB_INDEX_USAGE
 def_table_schema(
     owner = 'yangjiali.yjl',
     table_name     = 'DBA_OB_INDEX_USAGE',

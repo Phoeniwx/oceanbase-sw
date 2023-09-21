@@ -11,8 +11,8 @@ using namespace oceanbase::common;
 namespace oceanbase {
 namespace share {
 
-#define INSERT_INDEX_USAGE_SQL "INSERT INTO __all_index_usage_info(tenant_id,table_id,object_id,total_exec_count,start_used,last_used,last_flush_time) VALUES"
-#define INSERT_INDEX_USAGE_ON_DUPLICATE_SQL " ON DUPLICATE UPDATE total_exec_count=total_exec_count + VALUES(total_exec_count),last_flush_time=VALUES(last_flush_time)"
+#define INSERT_INDEX_USAGE_HEAD_SQL "INSERT INTO __all_index_usage_info(tenant_id,table_id,object_id,total_exec_count,start_used,last_used,last_flush_time) VALUES"
+#define INSERT_INDEX_USAGE_ON_DUPLICATE_END_SQL " ON DUPLICATE UPDATE total_exec_count=total_exec_count+VALUES(total_exec_count),last_flush_time=VALUES(last_flush_time)"
 ObIndexUsageReportTask::ObIndexUsageReportTask()
     : is_inited_(false), allocator_(MTL_ID()), sql_proxy_(nullptr) {}
 
@@ -47,7 +47,7 @@ void ObIndexUsageReportTask::runTimerTask() {
       if (count > 1) {
         insert_update_sql.append(",");
       } else {
-        insert_update_sql.append(INSERT_INDEX_USAGE_SQL);
+        insert_update_sql.append(INSERT_INDEX_USAGE_HEAD_SQL);
       }
       insert_update_sql.append_fmt("(%lu,%lu,%lu,%lu,now(6),usec_to_time(%ld),now(6))",
                                    it->first->tenant_id, it->first->index_table_id, it->first->database_id,
@@ -56,7 +56,7 @@ void ObIndexUsageReportTask::runTimerTask() {
 
       mgr->release_node(it->second);
       if (count % batch_size == 0) {
-        insert_update_sql.append(INSERT_INDEX_USAGE_ON_DUPLICATE_SQL);
+        insert_update_sql.append(INSERT_INDEX_USAGE_ON_DUPLICATE_END_SQL);
         if (OB_FAIL(sql_proxy_->write(insert_update_sql.ptr(), affected_rows))) {
           LOG_WARN("insert update sql error", K(ret));
         }
@@ -64,17 +64,17 @@ void ObIndexUsageReportTask::runTimerTask() {
       }
     }
     if (!insert_update_sql.empty()) {
-      insert_update_sql.append(INSERT_INDEX_USAGE_ON_DUPLICATE_SQL);
+      insert_update_sql.append(INSERT_INDEX_USAGE_ON_DUPLICATE_END_SQL);
       if (OB_FAIL(sql_proxy_->write(OB_SYS_TENANT_ID, insert_update_sql.ptr(), affected_rows))) {
         LOG_WARN("insert update sql error", K(ret));
       }
       insert_update_sql.reset();
     }
-    result_list.destroy();
   }
+  result_list.destroy();
 }
 }  // namespace share
 }  // namespace oceanbase
 
-#undef INSERT_INDEX_USAGE_SQL
-#undef INSERT_INDEX_USAGE_ON_DUPLICATE_SQL
+#undef INSERT_INDEX_USAGE_HEAD_SQL
+#undef INSERT_INDEX_USAGE_ON_DUPLICATE_END_SQL
