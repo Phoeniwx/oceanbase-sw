@@ -1666,7 +1666,7 @@ DEF_MODE_WITH_PARSER(_obkv_feature_mode, OB_CLUSTER_PARAMETER, "", common::ObKvF
 
 DEF_BOOL(_iut_enable, OB_CLUSTER_PARAMETER, "True",
     "specifies whether allow the index table usage start monitoring.",
-    ObParameterAttr(Section::TENANT, Source::,EditLevel::DYNAMIC_EFFECTIVE));
+    ObParameterAttr(Section::TENANT, Source::DEFAULT, EditLevel::DYNAMIC_EFFECTIVE));
 
 DEF_INT(_iut_max_entries, OB_CLUSTER_PARAMETER, "30000", "[0,]",
     "maximum of index entries to be monitoring.",
