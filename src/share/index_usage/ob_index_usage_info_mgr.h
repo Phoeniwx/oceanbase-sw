@@ -95,7 +95,7 @@ public:
   void destory();	// 释放map，在observer析构时调用
   int update(const int64_t database_id, const int64_t tenant_id, const int64_t index_table_id);
   int del(ObIndexUsageKey* key);
-  int sample(common::ObList<ObIndexUsagePair>& pair_list); // 采样哈希表
+  int sample(common::ObList<ObIndexUsagePair,common::ObFIFOAllocator>& pair_list); // 采样哈希表
   void release_node(ObIndexUsageInfo* info); // 用于task释放内存
 
 private:

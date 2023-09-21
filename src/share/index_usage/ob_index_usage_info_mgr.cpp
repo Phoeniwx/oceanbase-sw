@@ -145,7 +145,7 @@ int ObIndexUsageInfoMgr::update(const int64_t database_id, const int64_t tenant_
 }
 
 // sample ObIndexUsageInfo to pair_list, you need to free ObIndexUsageInfo* in pair_list later
-int ObIndexUsageInfoMgr::sample(common::ObList<ObIndexUsagePair>& pair_list) {
+int ObIndexUsageInfoMgr::sample(common::ObList<ObIndexUsagePair,common::ObFIFOAllocator>& pair_list) {
   int ret = OB_SUCCESS;
   const char* iut_mode = GCONF._iut_stat_collection_type;
   int64_t map_size = index_usage_map_.size();
