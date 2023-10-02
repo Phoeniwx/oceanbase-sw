@@ -98,6 +98,7 @@ compile_commands.json
 .cproject
 .cache
 .history/*
+nohup.out
 ## Intellij files
 .idea
 cmake-build-debug
