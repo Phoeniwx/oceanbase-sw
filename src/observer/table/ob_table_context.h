@@ -191,6 +191,7 @@ public:
   OB_INLINE common::ObIAllocator& get_allocator() { return allocator_; }
   OB_INLINE common::ObIAllocator& get_allocator() const { return allocator_; }
   OB_INLINE uint64_t get_tenant_id() const { return tenant_id_; }
+  OB_INLINE uint64_t get_database_id() const { return database_id_; }
   OB_INLINE common::ObTableID &get_table_id() { return index_table_id_; }
   OB_INLINE common::ObTableID get_ref_table_id() const { return ref_table_id_; }
   OB_INLINE common::ObTableID get_index_table_id() const { return index_table_id_; }

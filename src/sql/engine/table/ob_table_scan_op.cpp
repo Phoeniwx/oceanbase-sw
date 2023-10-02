@@ -32,6 +32,7 @@
 #include "share/external_table/ob_external_table_file_mgr.h"
 #include "share/external_table/ob_external_table_utils.h"
 #include "lib/container/ob_array_wrap.h"
+#include "share/index_usage/ob_index_usage_info_mgr.h"
 
 namespace oceanbase
 {
@@ -1334,6 +1335,21 @@ int ObTableScanOp::inner_open()
 int ObTableScanOp::inner_close()
 {
   int ret = OB_SUCCESS;
+  uint64_t table_id = MY_SPEC.get_ref_table_id();  
+  ObSQLSessionInfo *my_session = GET_MY_SESSION(ctx_);
+  if (OB_ISNULL(my_session)) {
+      ret = OB_ERR_UNEXPECTED;
+      LOG_WARN("invalid session", K(ret));
+  } else{
+    uint64_t tenant_id = my_session->get_effective_tenant_id();
+    uint64_t database_id = my_session->get_database_id();
+    oceanbase::share::ObIndexUsageInfoMgr *mgr = MTL(oceanbase::share::ObIndexUsageInfoMgr *);
+    if(OB_ISNULL(mgr)){
+      LOG_WARN("ob index usage is null", K(ret));
+    } else if(OB_FAIL(mgr->update(database_id, tenant_id, table_id))){
+      LOG_WARN("fail to update index usage info", K(ret));
+    }
+  }
   if (das_ref_.has_task()) {
     int tmp_ret = fill_storage_feedback_info();
     if (OB_UNLIKELY(OB_SUCCESS != tmp_ret)) {

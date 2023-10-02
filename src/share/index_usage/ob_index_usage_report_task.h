@@ -9,25 +9,24 @@ namespace oceanbase {
 namespace share {
 
 class ObIndexUsageReportTask : public common::ObTimerTask {
-public:
-  static const int64_t INDEX_USAGE_REPORT_INTERVAL =
-      15 * 60 * 1000L * 1000L; // 15min
-public:
+ public:
+  static const int64_t INDEX_USAGE_REPORT_INTERVAL = 5 * 60 * 1000L * 1000L;  // 15min
+ public:
   ObIndexUsageReportTask();
   virtual ~ObIndexUsageReportTask(){};
-  int init(common::ObMySQLProxy &sql_proxy);
+  int init(common::ObMySQLProxy& sql_proxy);
   void destroy();
 
-private:
+ private:
   virtual void runTimerTask();
   int storage_index_usage(const uint64_t tenant_id);
 
-private:
+ private:
   bool is_inited_;
   common::ObFIFOAllocator allocator_;
-  common::ObMySQLProxy *sql_proxy_; // 写入内部表需要 sql proxy
+  common::ObMySQLProxy* sql_proxy_;  // 写入内部表需要 sql proxy
 };
-} // namespace share
-} // namespace oceanbase
+}  // namespace share
+}  // namespace oceanbase
 
 #endif

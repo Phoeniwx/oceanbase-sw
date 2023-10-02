@@ -14,6 +14,7 @@
 #include "ob_table_scan_executor.h"
 #include "ob_table_context.h"
 #include "sql/das/ob_das_utils.h"
+#include "share/index_usage/ob_index_usage_info_mgr.h"
 
 namespace oceanbase
 {
@@ -265,6 +266,13 @@ int ObTableApiScanExecutor::get_next_row()
 int ObTableApiScanExecutor::close()
 {
   int ret = OB_SUCCESS;
+  
+  oceanbase::share::ObIndexUsageInfoMgr *mgr = MTL(oceanbase::share::ObIndexUsageInfoMgr *);
+  if(OB_ISNULL(mgr)){
+    LOG_WARN("ob index usage is null",K(ret));
+  } else if(OB_FAIL(mgr->update(tb_ctx_.get_database_id(),tb_ctx_.get_tenant_id(),tb_ctx_.get_table_id()))){
+    LOG_WARN("fail to update index usage info",K(ret));
+  }
 
   if (!is_opened_) {
     // do nothing
