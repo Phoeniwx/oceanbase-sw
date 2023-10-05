@@ -11,23 +11,26 @@
 namespace oceanbase {
 using namespace common;
 namespace share {
-const char* OB_INDEX_USAGE_REPORT_TASK = "IndexUsageReportTask";
-#define INSERT_INDEX_USAGE_HEAD_SQL                                                                                    \
-  "INSERT INTO __all_index_usage_info(tenant_id,table_id,object_id,name,owner,total_access_count,total_rows_returned," \
+const char *OB_INDEX_USAGE_REPORT_TASK = "IndexUsageReportTask";
+#define INSERT_INDEX_USAGE_HEAD_SQL                                            \
+  "INSERT INTO "                                                               \
+  "__all_index_usage_info(tenant_id,table_id,object_id,name,owner,total_"      \
+  "access_count,total_rows_returned,"                                          \
   "total_exec_count,start_used,last_used,last_flush_time) VALUES"
-#define INSERT_INDEX_USAGE_ON_DUPLICATE_END_SQL                            \
-  " ON DUPLICATE KEY UPDATE "                                              \
-  "total_exec_count=total_exec_count+VALUES(total_exec_count),last_flush_" \
+#define INSERT_INDEX_USAGE_ON_DUPLICATE_END_SQL                                \
+  " ON DUPLICATE KEY UPDATE "                                                  \
+  "total_exec_count=total_exec_count+VALUES(total_exec_count),last_flush_"     \
   "time=VALUES(last_flush_time)"
 ObIndexUsageReportTask::ObIndexUsageReportTask()
     : is_inited_(false), allocator_(), sql_proxy_(nullptr) {}
 
-int ObIndexUsageReportTask::init(common::ObMySQLProxy& sql_proxy) {
+int ObIndexUsageReportTask::init(common::ObMySQLProxy &sql_proxy) {
   int ret = OB_SUCCESS;
   if (!is_inited_) {
     sql_proxy_ = &sql_proxy;
     const ObMemAttr attr(MTL_ID(), OB_INDEX_USAGE_REPORT_TASK);
-    if (OB_FAIL(allocator_.init(ObMallocAllocator::get_instance(), OB_MALLOC_NORMAL_BLOCK_SIZE, attr))) {
+    if (OB_FAIL(allocator_.init(ObMallocAllocator::get_instance(),
+                                OB_MALLOC_NORMAL_BLOCK_SIZE, attr))) {
       LOG_WARN("init allocator failed", K(ret));
     } else {
       is_inited_ = true;
@@ -36,14 +39,12 @@ int ObIndexUsageReportTask::init(common::ObMySQLProxy& sql_proxy) {
   return ret;
 }
 
-void ObIndexUsageReportTask::destroy() {
-  sql_proxy_ = nullptr;
-}
+void ObIndexUsageReportTask::destroy() { sql_proxy_ = nullptr; }
 
 void ObIndexUsageReportTask::runTimerTask() {
   int ret = OB_SUCCESS;
   common::ObArray<uint64_t> tenant_ids;
-  omt::ObMultiTenant* omt = GCTX.omt_;
+  omt::ObMultiTenant *omt = GCTX.omt_;
   if (OB_ISNULL(omt)) {
     ret = OB_ERR_UNEXPECTED;
     STORAGE_LOG(WARN, "unexpected error, omt is nullptr", K(ret));
@@ -52,7 +53,7 @@ void ObIndexUsageReportTask::runTimerTask() {
   }
 
   for (int64_t i = 0; OB_SUCC(ret) && i < tenant_ids.size(); i++) {
-    const uint64_t& tenant_id = tenant_ids.at(i);
+    const uint64_t &tenant_id = tenant_ids.at(i);
     MTL_SWITCH(tenant_id) {
       if (OB_FAIL(storage_index_usage(tenant_id))) {
         STORAGE_LOG(WARN, "failed to count tenant's slog", K(ret));
@@ -70,7 +71,7 @@ void ObIndexUsageReportTask::runTimerTask() {
 }
 int ObIndexUsageReportTask::storage_index_usage(const uint64_t tenant_id) {
   int ret = OB_SUCCESS;
-  ObIndexUsageInfoMgr* mgr = MTL(ObIndexUsageInfoMgr*);
+  ObIndexUsageInfoMgr *mgr = MTL(ObIndexUsageInfoMgr *);
 
   // todo: write data
   common::ObList<ObIndexUsageInfoMgr::ObIndexUsagePair, common::ObFIFOAllocator>
@@ -94,11 +95,10 @@ int ObIndexUsageReportTask::storage_index_usage(const uint64_t tenant_id) {
       }
       insert_update_sql.append_fmt(
           "(%lu,%lu,%lu,'','',0,0,%lu,now(6),usec_to_time(%ld),now(6))",
-          it->first.tenant_id, it->first.index_table_id,
-          it->first.database_id, it->second.ref_count,
-          it->second.last_used_time);
+          it->first.tenant_id, it->first.index_table_id, it->first.database_id,
+          it->second.ref_count, it->second.last_used_time);
 
-      //mgr->release_node(&it->second);
+      // mgr->release_node(&it->second);
       if (count % batch_size == 0) {
         insert_update_sql.append(INSERT_INDEX_USAGE_ON_DUPLICATE_END_SQL);
         if (OB_FAIL(
@@ -120,8 +120,8 @@ int ObIndexUsageReportTask::storage_index_usage(const uint64_t tenant_id) {
   result_list.destroy();
   return ret;
 }
-}  // namespace share
-}  // namespace oceanbase
+} // namespace share
+} // namespace oceanbase
 
 #undef INSERT_INDEX_USAGE_HEAD_SQL
 #undef INSERT_INDEX_USAGE_ON_DUPLICATE_END_SQL

@@ -21,13 +21,15 @@ namespace oceanbase {
 namespace share {
 
 enum ObIndexUsageOpMode {
-  UPDATE,  // for update haspmap
-  RESET    // for reset hashmap
+  UPDATE, // for update haspmap
+  RESET   // for reset hashmap
 };
 
 struct ObIndexUsageKey {
-  ObIndexUsageKey(uint64_t database_id, uint64_t tenant_id, uint64_t index_table_id)
-      : database_id(database_id), tenant_id(tenant_id), index_table_id(index_table_id) {}
+  ObIndexUsageKey(uint64_t database_id, uint64_t tenant_id,
+                  uint64_t index_table_id)
+      : database_id(database_id), tenant_id(tenant_id),
+        index_table_id(index_table_id) {}
 
   ObIndexUsageKey() {}
   ~ObIndexUsageKey() {}
@@ -35,14 +37,15 @@ struct ObIndexUsageKey {
   uint64_t hash() const {
     uint64_t hash_value = common::murmurhash(&database_id, sizeof(uint64_t), 0);
     hash_value = common::murmurhash(&tenant_id, sizeof(uint64_t), hash_value);
-    hash_value = common::murmurhash(&index_table_id, sizeof(uint64_t), hash_value);
+    hash_value =
+        common::murmurhash(&index_table_id, sizeof(uint64_t), hash_value);
     return hash_value;
   }
-  inline int hash(uint64_t& hash_val) const {
+  inline int hash(uint64_t &hash_val) const {
     hash_val = hash();
     return OB_SUCCESS;
   }
-  bool operator==(const ObIndexUsageKey& other) const {
+  bool operator==(const ObIndexUsageKey &other) const {
     return database_id == other.database_id && tenant_id == other.tenant_id &&
            index_table_id == other.index_table_id;
   }
@@ -53,8 +56,10 @@ struct ObIndexUsageKey {
 };
 
 struct ObIndexUsageInfo {
-  ObIndexUsageInfo(uint64_t data_table_id, int64_t ref_count, time_t last_used_time)
-      : data_table_id(data_table_id), ref_count(ref_count), last_used_time(last_used_time) {}
+  ObIndexUsageInfo(uint64_t data_table_id, int64_t ref_count,
+                   time_t last_used_time)
+      : data_table_id(data_table_id), ref_count(ref_count),
+        last_used_time(last_used_time) {}
   ObIndexUsageInfo() {}
   ~ObIndexUsageInfo() {}
   uint64_t data_table_id;
@@ -64,53 +69,57 @@ struct ObIndexUsageInfo {
 
 // callback for update or reset map value
 class ObIndexUsageOp {
- public:
+public:
   explicit ObIndexUsageOp(ObIndexUsageOpMode mode,
-                          ObIndexUsageInfo* old_info = nullptr)
-      : op_mode_(mode), is_called_(false), ret_code_(common::OB_SUCCESS), old_info_(old_info) {}
+                          ObIndexUsageInfo *old_info = nullptr)
+      : op_mode_(mode), is_called_(false), ret_code_(common::OB_SUCCESS),
+        old_info_(old_info) {}
   virtual ~ObIndexUsageOp() {}
   void operator()(
-      common::hash::HashMapPair<ObIndexUsageKey, ObIndexUsageInfo>& data);
-  void set_old_info(ObIndexUsageInfo* old_info) { old_info_ = old_info; }
+      common::hash::HashMapPair<ObIndexUsageKey, ObIndexUsageInfo> &data);
+  void set_old_info(ObIndexUsageInfo *old_info) { old_info_ = old_info; }
   bool is_called() { return is_called_; }
   int get_ret() { return ret_code_; }
 
- private:
+private:
   ObIndexUsageOpMode op_mode_;
   bool is_called_;
   int ret_code_;
-  ObIndexUsageInfo* old_info_;
+  ObIndexUsageInfo *old_info_;
   DISALLOW_COPY_AND_ASSIGN(ObIndexUsageOp);
 };
 
 class ObIndexUsageInfoMgr {
-  typedef common::hash::ObHashMap<ObIndexUsageKey, ObIndexUsageInfo, common::hash::ReadWriteDefendMode>
+  typedef common::hash::ObHashMap<ObIndexUsageKey, ObIndexUsageInfo,
+                                  common::hash::ReadWriteDefendMode>
       ObIndexUsageHashMap;
-  static const int64_t SAMPLE_RATIO = 50;  // 采样模式下的采样比例，50 表示 50%
+  static const int64_t SAMPLE_RATIO = 50; // 采样模式下的采样比例，50 表示 50%
   static const int64_t DEFAULT_MAX_HASH_BUCKET_CNT = 10000;
 
- public:
+public:
   typedef common::hash::HashMapPair<ObIndexUsageKey, ObIndexUsageInfo>
       ObIndexUsagePair;
-  static int mtl_init(ObIndexUsageInfoMgr*& index_usage_mgr);
-  static void mtl_destroy(ObIndexUsageInfoMgr*& index_usage_mgr);
+  static int mtl_init(ObIndexUsageInfoMgr *&index_usage_mgr);
+  static void mtl_destroy(ObIndexUsageInfoMgr *&index_usage_mgr);
   ObIndexUsageInfoMgr();
   ~ObIndexUsageInfoMgr();
 
- public:
-  int init();      // 申请map内存，在创建索引之后调用
-  void destory();  // 释放map，在observer析构时调用
-  int update(const uint64_t database_id, const uint64_t tenant_id, const uint64_t index_table_id);
-  int del(ObIndexUsageKey& key);
-  int sample(common::ObList<ObIndexUsagePair, common::ObFIFOAllocator>& pair_list);  // 采样哈希表
-  void release_node(ObIndexUsageInfo* info);                                         // 用于task释放内存
+public:
+  int init();     // 申请map内存，在创建索引之后调用
+  void destory(); // 释放map，在observer析构时调用
+  int update(const uint64_t database_id, const uint64_t tenant_id,
+             const uint64_t index_table_id);
+  int del(ObIndexUsageKey &key);
+  int sample(common::ObList<ObIndexUsagePair, common::ObFIFOAllocator>
+                 &pair_list);                // 采样哈希表
+  void release_node(ObIndexUsageInfo *info); // 用于task释放内存
 
- private:
+private:
   bool is_destroying();
   // int alloc_new_record(const ObIndexUsageKey &temp_key, ObIndexUsageKey *key,
   //                     ObIndexUsageInfo *info);
 
- private:
+private:
   bool is_inited_;
   bool is_destroying_;
   ObIndexUsageHashMap index_usage_map_;
@@ -119,6 +128,6 @@ class ObIndexUsageInfoMgr {
   common::ObFIFOAllocator allocator_;
 };
 
-}  // namespace share
-}  // namespace oceanbase
+} // namespace share
+} // namespace oceanbase
 #endif

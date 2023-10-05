@@ -13,7 +13,7 @@
 #include "lib/ob_errno.h"
 #include "lib/oblog/ob_log_module.h"
 #include "lib/utility/ob_macro_utils.h"
-#include "observer/omt/ob_tenant_config_mgr.h"  // ObTenantConfigGuard
+#include "observer/omt/ob_tenant_config_mgr.h" // ObTenantConfigGuard
 #include "share/ob_errno.h"
 #include "share/rc/ob_tenant_base.h"
 
@@ -23,10 +23,10 @@ using namespace oceanbase::common;
 namespace oceanbase {
 namespace share {
 
-const char* OB_INDEX_USAGE_MANAGER = "hIndexUsageMgr";
+const char *OB_INDEX_USAGE_MANAGER = "hIndexUsageMgr";
 
 void ObIndexUsageOp::operator()(
-    common::hash::HashMapPair<ObIndexUsageKey, ObIndexUsageInfo>& data) {
+    common::hash::HashMapPair<ObIndexUsageKey, ObIndexUsageInfo> &data) {
   if (op_mode_ == ObIndexUsageOpMode::UPDATE) {
     ret_code_ = OB_SUCCESS;
     data.second.ref_count++;
@@ -47,11 +47,12 @@ void ObIndexUsageOp::operator()(
 }
 
 ObIndexUsageInfoMgr::ObIndexUsageInfoMgr()
-    : is_inited_(false), is_destroying_(false), index_usage_map_(), init_lock_(), destory_lock_(), allocator_(MTL_ID()) {}
+    : is_inited_(false), is_destroying_(false), index_usage_map_(),
+      init_lock_(), destory_lock_(), allocator_(MTL_ID()) {}
 
 ObIndexUsageInfoMgr::~ObIndexUsageInfoMgr() {}
 
-int ObIndexUsageInfoMgr::mtl_init(ObIndexUsageInfoMgr*& index_usage_mgr) {
+int ObIndexUsageInfoMgr::mtl_init(ObIndexUsageInfoMgr *&index_usage_mgr) {
   int ret = OB_SUCCESS;
   index_usage_mgr =
       OB_NEW(ObIndexUsageInfoMgr, ObMemAttr(MTL_ID(), OB_INDEX_USAGE_MANAGER));
@@ -64,7 +65,7 @@ int ObIndexUsageInfoMgr::mtl_init(ObIndexUsageInfoMgr*& index_usage_mgr) {
   return ret;
 }
 
-void ObIndexUsageInfoMgr::mtl_destroy(ObIndexUsageInfoMgr*& index_usage_mgr) {
+void ObIndexUsageInfoMgr::mtl_destroy(ObIndexUsageInfoMgr *&index_usage_mgr) {
   if (nullptr != index_usage_mgr) {
     LOG_INFO("mtl destory ObIndexUsageInfoMgr", K(MTL_ID()));
     index_usage_mgr->destory();
@@ -152,9 +153,9 @@ int ObIndexUsageInfoMgr::update(const uint64_t database_id,
 // sample ObIndexUsageInfo to pair_list, you need to free ObIndexUsageInfo* in
 // pair_list later
 int ObIndexUsageInfoMgr::sample(
-    common::ObList<ObIndexUsagePair, common::ObFIFOAllocator>& pair_list) {
+    common::ObList<ObIndexUsagePair, common::ObFIFOAllocator> &pair_list) {
   int ret = OB_SUCCESS;
-  const char* iut_mode = GCONF._iut_stat_collection_type;
+  const char *iut_mode = GCONF._iut_stat_collection_type;
   int64_t map_size = index_usage_map_.size();
   int64_t sample_count = index_usage_map_.size();
   if (strcmp(iut_mode, "SAMPLE") == 0) {
@@ -178,7 +179,7 @@ int ObIndexUsageInfoMgr::sample(
   return ret;
 }
 
-int ObIndexUsageInfoMgr::del(ObIndexUsageKey& key) {
+int ObIndexUsageInfoMgr::del(ObIndexUsageKey &key) {
   int ret = OB_SUCCESS;
   if (is_destroying()) {
     int ret = OB_ERROR;
@@ -186,7 +187,7 @@ int ObIndexUsageInfoMgr::del(ObIndexUsageKey& key) {
     return ret;
   }
   SpinRLockGuard guard(destory_lock_);
-  ObIndexUsageInfo* info_ptr_ptr = index_usage_map_.get(key);
+  ObIndexUsageInfo *info_ptr_ptr = index_usage_map_.get(key);
   if (OB_ISNULL(info_ptr_ptr)) {
     LOG_WARN("index usage key not exists");
   } else {
@@ -227,7 +228,7 @@ int ObIndexUsageInfoMgr::alloc_new_record(const ObIndexUsageKey &temp_key,
   return ret;
 }
 */
-void ObIndexUsageInfoMgr::release_node(ObIndexUsageInfo* info) {
+void ObIndexUsageInfoMgr::release_node(ObIndexUsageInfo *info) {
   if (OB_NOT_NULL(info)) {
     allocator_.free(info);
     info = nullptr;
@@ -239,5 +240,5 @@ bool ObIndexUsageInfoMgr::is_destroying() {
   return is_destroying_;
 }
 
-}  // namespace share
-}  // namespace oceanbase
+} // namespace share
+} // namespace oceanbase
