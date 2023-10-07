@@ -268,7 +268,7 @@ int ObMPConnect::init_connect_process(ObString &init_sql,
   int ret = OB_SUCCESS;
   ObSEArray<ObString, 4> queries;
   ObArenaAllocator allocator(ObModIds::OB_SQL_PARSER);
-  ObParser parser(allocator, session.get_sql_mode(), session.get_local_collation_connection());
+  ObParser parser(allocator, session.get_sql_mode(), session.get_charsets4parser());
   ObMPParseStat parse_stat;
   if (OB_SUCC(parser.split_multiple_stmt(init_sql, queries, parse_stat))) {
     if (OB_UNLIKELY(0 == queries.count())) {
@@ -1940,6 +1940,7 @@ int ObMPConnect::verify_identify(ObSMConnection &conn, ObSQLSessionInfo &session
     session.set_tenant(tenant_name_, tenant_id);
     session.set_proxy_cap_flags(conn.proxy_cap_flags_);
     session.set_login_tenant_id(tenant_id);
+    session.set_client_non_standard(common::OB_CLIENT_NON_STANDARD == conn.client_type_ ? true : false);
     // Check tenant after set tenant session is necessary!
     // Because if another client is deleting this tenant while the
     // session doesn't has been contructed completely, omt
@@ -2146,26 +2147,3 @@ int ObMPConnect::set_client_version(ObSMConnection &conn)
   return ret;
 }
 
-int ObMPConnect::update_charset_sys_vars(ObSMConnection &conn, ObSQLSessionInfo &sess_info)
-{
-  int ret = OB_SUCCESS;
-  int64_t cs_type = conn.client_cs_type_;
-  const int64_t LATIN1_CS = 8;
-  //background: mysqltest give a default connect_charset=latin1
-  //            but for history reason, oceanbase use utf8 as
-  //            default charset for mysqltest
-  //TODO: after obclient&mysqltest support default charset = utf8
-  //      login for cs_type != LATIN1_CS would be deleted
-  if (ObCharset::is_valid_collation(cs_type)) {
-    if (OB_FAIL(sess_info.update_sys_variable(SYS_VAR_CHARACTER_SET_CLIENT, cs_type))) {
-      SQL_ENG_LOG(WARN, "failed to update sys var", K(ret));
-    } else if (OB_FAIL(sess_info.update_sys_variable(SYS_VAR_CHARACTER_SET_RESULTS, cs_type))) {
-      SQL_ENG_LOG(WARN, "failed to update sys var", K(ret));
-    } else if (OB_FAIL(sess_info.update_sys_variable(SYS_VAR_CHARACTER_SET_CONNECTION, cs_type))) {
-      SQL_ENG_LOG(WARN, "failed to update sys var", K(ret));
-    } else if (OB_FAIL(sess_info.update_sys_variable(SYS_VAR_COLLATION_CONNECTION, cs_type))) {
-      SQL_ENG_LOG(WARN, "failed to update sys var", K(ret));
-    }
-  }
-  return ret;
-}

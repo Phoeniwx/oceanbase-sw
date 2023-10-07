@@ -229,6 +229,8 @@ int ObStorageHAUtils::check_ls_deleted(
   if (!ls_id.is_valid()) {
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("get ls status from inner table get invalid argument", K(ret), K(ls_id));
+  } else if (!REACH_TENANT_TIME_INTERVAL(60 * 1000L * 1000L)) { //60s
+    is_deleted = false;
   } else if (OB_FAIL(ObLocationService::check_ls_exist(tenant_id, ls_id, state))) {
     LOG_WARN("failed to check ls exist", K(ret), K(tenant_id), K(ls_id));
     //overwrite ret
@@ -324,6 +326,16 @@ int ObStorageHAUtils::check_is_primary_tenant(const uint64_t tenant_id, bool &is
     LOG_WARN("check is primary tenant", K(ret), K(tenant_id));
   } else if (OB_FAIL(ObAllTenantInfoProxy::is_primary_tenant(GCTX.sql_proxy_, tenant_id, is_primary_tenant))) {
     LOG_WARN("check is standby tenant failed", K(ret), K(tenant_id));
+  }
+  return ret;
+}
+
+int ObStorageHAUtils::check_disk_space()
+{
+  int ret = OB_SUCCESS;
+  const int64_t required_size = 0;
+  if (OB_FAIL(THE_IO_DEVICE->check_space_full(required_size))) {
+    LOG_WARN("failed to check is disk full, cannot transfer in", K(ret));
   }
   return ret;
 }

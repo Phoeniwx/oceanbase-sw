@@ -280,6 +280,7 @@ void ObPartTransCtx::default_init_()
   // lock_.reset();
   stc_.reset();
   commit_cb_.reset();
+  callback_scheduler_on_clear_ = false;
   pending_callback_param_ = OB_SUCCESS;
   trans_need_wait_wrap_.reset();
   is_exiting_ = false;
@@ -6937,7 +6938,7 @@ int ObPartTransCtx::dup_table_before_preapre_(const share::SCN &before_prepare_v
   }
 
   if (OB_SUCC(ret)) {
-    DUP_TABLE_LOG(INFO, "set dup_table before prepare version successfully", K(ret),
+    TRANS_LOG(INFO, "set dup_table before prepare version successfully", K(ret),
                   K(before_prepare_version), K(before_replay), KPC(this));
   }
 

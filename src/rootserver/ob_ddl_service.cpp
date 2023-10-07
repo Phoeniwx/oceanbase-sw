@@ -2750,12 +2750,16 @@ int ObDDLService::set_raw_table_options(
           break;
         }
         case ObAlterTableArg::ENCRYPTION: {
-          new_table_schema.set_encryption_str(alter_table_schema.get_encryption_str());
+          if (OB_FAIL(new_table_schema.set_encryption_str(alter_table_schema.get_encryption_str()))) {
+            LOG_WARN("fail to set encryption_str", K(ret), K(alter_table_schema.get_encryption_str()));
+          }
           break;
         }
         case ObAlterTableArg::TABLESPACE_ID: {
           new_table_schema.set_tablespace_id(alter_table_schema.get_tablespace_id());
-          new_table_schema.set_encryption_str(alter_table_schema.get_encryption_str());
+          if (OB_FAIL(new_table_schema.set_encryption_str(alter_table_schema.get_encryption_str()))) {
+            LOG_WARN("fail to set encryption_str", K(ret), K(alter_table_schema.get_encryption_str()));
+          }
           break;
         }
         case ObAlterTableArg::TTL_DEFINITION: {
@@ -3011,6 +3015,9 @@ int ObDDLService::drop_primary_key(
     if (OB_ISNULL(col = new_table_schema.get_column_schema(rowkey_column->column_id_))) {
       ret = OB_ERR_UNEXPECTED;
       LOG_WARN("col is nullptr", K(ret), K(rowkey_column->column_id_), K(new_table_schema));
+    } else if (OB_HIDDEN_SESSION_ID_COLUMN_ID == col->get_column_id()) {
+      ret = OB_NOT_SUPPORTED;
+      LOG_USER_ERROR(OB_NOT_SUPPORTED, "Dropping primary key of global temporary table");
     } else {
       col->set_rowkey_position(0);
     }
@@ -3048,21 +3055,30 @@ int ObDDLService::add_primary_key(const ObIArray<ObString> &pk_column_names, ObT
   // step1: clear origin primary key
   ObTableSchema::const_column_iterator tmp_begin = new_table_schema.column_begin();
   ObTableSchema::const_column_iterator tmp_end = new_table_schema.column_end();
+  ObColumnSchemaV2 *del_hidden_pk_column = nullptr;
   for (; OB_SUCC(ret) && tmp_begin != tmp_end; tmp_begin++) {
     ObColumnSchemaV2 *col = (*tmp_begin);
     if (OB_ISNULL(col)) {
       ret = OB_ERR_UNEXPECTED;
-    } else if (col->get_column_id() == OB_HIDDEN_PK_INCREMENT_COLUMN_ID) {
-      // delete hidden primary key
-      if (OB_FAIL(new_table_schema.delete_column(col->get_column_name_str()))) {
-        LOG_WARN("fail to delete hidden primary key", K(ret));
-      }
+    } else if (OB_HIDDEN_PK_INCREMENT_COLUMN_ID == col->get_column_id()) {
+      del_hidden_pk_column = col;
+    } else if (OB_HIDDEN_SESSION_ID_COLUMN_ID == col->get_column_id()) {
+      ret = OB_NOT_SUPPORTED;
+      LOG_USER_ERROR(OB_NOT_SUPPORTED, "Adding primary key to global temporary table");
     } else {
       col->set_rowkey_position(0);
     }
     new_table_schema.set_table_pk_mode(ObTablePKMode::TPKM_OLD_NO_PK);
     new_table_schema.set_table_organization_mode(ObTableOrganizationMode::TOM_INDEX_ORGANIZED);
   }
+
+  if (OB_SUCC(ret) && nullptr != del_hidden_pk_column) {
+    // delete hidden primary key
+    if (OB_FAIL(new_table_schema.delete_column(del_hidden_pk_column->get_column_name_str()))) {
+      LOG_WARN("fail to delete hidden primary key", K(ret));
+    }
+  }
+
   if (OB_SUCC(ret)) {
     // step2: set new primary key rowkey_position
     int64_t rowkey_position = 1;
@@ -11745,10 +11761,10 @@ int ObDDLService::do_offline_ddl_in_trans(obrpc::ObAlterTableArg &alter_table_ar
                                    &alter_table_arg,
                                    0/*parent_task_id*/,
                                    task_id);
-        if (orig_table_schema->is_tmp_table() || orig_table_schema->is_external_table()) {
+        if (orig_table_schema->is_external_table()) {
           ret = OB_OP_NOT_ALLOW;
           char err_msg[OB_MAX_ERROR_MSG_LEN] = {0};
-          (void)snprintf(err_msg, sizeof(err_msg), "%s on temporary table is", ddl_type_str(ddl_type));
+          (void)snprintf(err_msg, sizeof(err_msg), "%s on external table is", ddl_type_str(ddl_type));
           LOG_WARN("double table long running ddl on temporary table is disallowed", K(ret), K(ddl_type));
           LOG_USER_ERROR(OB_OP_NOT_ALLOW, err_msg);
         } else if (OB_FAIL(ObDDLTaskRecordOperator::check_has_conflict_ddl(sql_proxy_, tenant_id, orig_table_schema->get_table_id(), 0, ddl_type, has_conflict_ddl))) {
@@ -14227,10 +14243,10 @@ int ObDDLService::drop_aux_table_in_truncate(
     }
   } else if (table_type == AUX_LOB_META) {
     lob_meta_table_id = orig_table_schema.get_aux_lob_meta_tid();
-    N = orig_table_schema.has_lob_column() ? 1 : 0;
+    N = orig_table_schema.has_lob_aux_table() ? 1 : 0;
   } else if (table_type == AUX_LOB_PIECE) {
     lob_piece_table_id = orig_table_schema.get_aux_lob_piece_tid();
-    N = orig_table_schema.has_lob_column() ? 1 : 0;
+    N = orig_table_schema.has_lob_aux_table() ? 1 : 0;
   } else {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("table type is invalide", K(ret), K(table_type));
@@ -14654,7 +14670,9 @@ int ObDDLService::create_user_hidden_table(const ObTableSchema &orig_table_schem
   bool need_sync_schema_version = false;
   SCN frozen_scn = SCN::min_scn();
   bool is_add_identity_column = false;
-  hidden_table_schema.set_in_offline_ddl_white_list(orig_table_schema.check_can_do_ddl()); // allow offline ddl execute if there's no offline ddl doing
+  const bool in_offline_ddl_white_list = orig_table_schema.get_tenant_id() != hidden_table_schema.get_tenant_id() ?
+    true : orig_table_schema.check_can_do_ddl();
+  hidden_table_schema.set_in_offline_ddl_white_list(in_offline_ddl_white_list); // allow offline ddl execute if there's no offline ddl doing
   if (OB_ISNULL(GCTX.root_service_)) {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("root service is null", KR(ret));
@@ -15383,6 +15401,7 @@ int ObDDLService::reconstruct_index_schema(obrpc::ObAlterTableArg &alter_table_a
             } else if (OB_FAIL(generate_tablet_id(new_index_schema))) {
               LOG_WARN("fail to generate tablet id for hidden table", K(ret), K(new_index_schema));
             } else {
+              bool is_exist = false;
               new_index_schema.set_max_used_column_id(max(
                   new_index_schema.get_max_used_column_id(), hidden_table_schema.get_max_used_column_id()));
               new_index_schema.set_table_id(new_idx_tid);
@@ -15391,7 +15410,13 @@ int ObDDLService::reconstruct_index_schema(obrpc::ObAlterTableArg &alter_table_a
               new_index_schema.set_tenant_id(hidden_table_schema.get_tenant_id());
               new_index_schema.set_database_id(hidden_table_schema.get_database_id());
               new_index_schema.set_table_state_flag(target_flag);
-              bool is_exist = false;
+              if (is_recover_restore_table) {
+                if (OB_FAIL(new_index_schema.set_encryption_str(hidden_table_schema.get_encryption_str()))) {
+                  LOG_WARN("set encryption str failed", K(ret), K(hidden_table_schema.get_encryption_str()));
+                } else {
+                  new_index_schema.set_tablespace_id(hidden_table_schema.get_tablespace_id());
+                }
+              }
               if (OB_FAIL(ret)) {
               } else if (OB_FAIL(dest_schema_guard.check_table_exist(new_index_schema.get_tenant_id(),
                                                                 new_index_schema.get_database_id(),
@@ -19359,10 +19384,10 @@ int ObDDLService::flashback_aux_table(
     }
   } else if (table_type == AUX_LOB_META) {
     lob_meta_table_id = table_schema.get_aux_lob_meta_tid();
-    N = table_schema.has_lob_column() ? 1 : 0;
+    N = table_schema.has_lob_aux_table() ? 1 : 0;
   } else if (table_type == AUX_LOB_PIECE) {
     lob_piece_table_id = table_schema.get_aux_lob_piece_tid();
-    N = table_schema.has_lob_column() ? 1 : 0;
+    N = table_schema.has_lob_aux_table() ? 1 : 0;
   } else {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("Invalid table type.", K(ret), K(table_type));
@@ -24810,11 +24835,23 @@ int ObDDLService::record_tenant_locality_event_history(
     // ALTER_LOCALITY, ROLLBACK_ALTER_LOCALITY(only 4.2), NOP_LOCALITY_OP
     job_type =  ObRsJobType::JOB_TYPE_INVALID == job_type ?
                 ObRsJobType::JOB_TYPE_ALTER_TENANT_LOCALITY : job_type;
-    ret = RS_JOB_CREATE_WITH_RET(job_id, job_type, trans,
+    const int64_t extra_info_len = common::MAX_ROOTSERVICE_EVENT_EXTRA_INFO_LENGTH;
+    HEAP_VAR(char[extra_info_len], extra_info) {
+      memset(extra_info, 0, extra_info_len);
+      int64_t pos = 0;
+      if (OB_FAIL(databuff_printf(extra_info, extra_info_len, pos,
+              "FROM: '%.*s', TO: '%.*s'", tenant_schema.get_previous_locality_str().length(),
+              tenant_schema.get_previous_locality_str().ptr(), tenant_schema.get_locality_str().length(),
+              tenant_schema.get_locality_str().ptr()))) {
+        LOG_WARN("format extra_info failed", KR(ret), K(tenant_schema));
+      } else if (OB_FAIL(RS_JOB_CREATE_WITH_RET(job_id, job_type, trans,
         "tenant_name", tenant_schema.get_tenant_name(),
         "tenant_id", tenant_schema.get_tenant_id(),
         "sql_text", ObHexEscapeSqlStr(arg.ddl_stmt_str_),
-        "extra_info", tenant_schema.get_previous_locality_str());
+        "extra_info", ObHexEscapeSqlStr(extra_info)))) {
+        LOG_WARN("failed to create new rs job", KR(ret), K(job_type), K(tenant_schema), K(extra_info));
+      }
+    }
     FLOG_INFO("[ALTER_TENANT_LOCALITY NOTICE] create a new rs job", KR(ret),
         "tenant_id", tenant_schema.get_tenant_id(), K(job_id), K(alter_locality_op));
   }

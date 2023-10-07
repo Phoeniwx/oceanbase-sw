@@ -236,7 +236,7 @@ int ObSPIResultSet::is_set_global_var(ObSQLSessionInfo &session, const ObString 
   ObArenaAllocator allocator;
   ParseResult parse_result;
   ParseMode parse_mode = STD_MODE;
-  ObParser parser(allocator, session.get_sql_mode(), session.get_local_collation_connection());
+  ObParser parser(allocator, session.get_sql_mode(), session.get_charsets4parser());
   if (sql.empty()) {
   } else if (OB_FAIL(parser.parse(sql,
                             parse_result,
@@ -2095,7 +2095,7 @@ int ObSPIService::spi_parse_prepare(common::ObIAllocator &allocator,
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("Argument passed in is NULL", K(sql), K(secondary_namespace), K(ret));
   } else {
-    ObParser parser(allocator, session.get_sql_mode(), session.get_local_collation_connection());
+    ObParser parser(allocator, session.get_sql_mode(), session.get_charsets4parser());
     ParseResult parse_result;
     if (OB_FAIL(parser.prepare_parse(sql, static_cast<void*>(secondary_namespace), parse_result))) {
       LOG_WARN("Generate syntax tree failed", K(sql), K(ret));
@@ -3803,7 +3803,7 @@ int ObSPIService::dbms_cursor_open(ObPLExecCtx *ctx,
           lib::ContextTLOptGuard guard(false);
           if (OB_FAIL(inner_open(ctx, sql_str, ps_sql, stmt_type, exec_params,
                               *spi_result, spi_result->get_out_params()))) {
-            if (spi_result->get_result_set() != NULL && !cursor.is_ps_cursor()) {
+            if (spi_result->get_result_set() != NULL) {
               int cli_ret = OB_SUCCESS;
               retry_ctrl.test_and_save_retry_state(GCTX,
                                                 spi_result->get_sql_ctx(),
@@ -3811,9 +3811,11 @@ int ObSPIService::dbms_cursor_open(ObPLExecCtx *ctx,
                                                 ret, cli_ret, true, true, true);
                 LOG_WARN("fail to open, check if need retry", K(ret), K(cli_ret),
                   K(retry_ctrl.need_retry()), K(sql_str), K(ps_sql), K(exec_params));
-              ret = cli_ret;
-              spi_result->get_sql_ctx().clear();
-              ctx->exec_ctx_->get_my_session()->set_session_in_retry(retry_ctrl.need_retry());
+              if (!cursor.is_ps_cursor()) {
+                ret = cli_ret;
+                spi_result->get_sql_ctx().clear();
+                ctx->exec_ctx_->get_my_session()->set_session_in_retry(retry_ctrl.need_retry());
+              }
             }
           }
         }
@@ -3925,7 +3927,7 @@ int ObSPIService::dbms_cursor_open(ObPLExecCtx *ctx,
                   spi_result.get_result_set()->get_field_columns(),
                   cursor.get_field_columns()));
             OZ (fill_cursor(*spi_result.get_result_set(), spi_cursor));
-            if (OB_FAIL(ret) && !cursor.is_ps_cursor()) {
+            if (OB_FAIL(ret)) {
               int cli_ret = OB_SUCCESS;
               retry_ctrl.test_and_save_retry_state(GCTX,
                                                   spi_result.get_sql_ctx(),
@@ -3938,9 +3940,11 @@ int ObSPIService::dbms_cursor_open(ObPLExecCtx *ctx,
               LOG_WARN("failed to fill_cursor, check if need retry",
                       K(ret), K(cli_ret), K(retry_ctrl.need_retry()),
                       K(sql_stmt), K(ps_sql), K(exec_params));
-              ret = cli_ret;
-              spi_result.get_sql_ctx().clear();
-              ctx->exec_ctx_->get_my_session()->set_session_in_retry(retry_ctrl.need_retry());
+              if (!cursor.is_ps_cursor()) {
+                ret = cli_ret;
+                spi_result.get_sql_ctx().clear();
+                ctx->exec_ctx_->get_my_session()->set_session_in_retry(retry_ctrl.need_retry());
+              }
             }
           }
           OX (spi_cursor->row_store_.finish_add_row());
@@ -5746,7 +5750,11 @@ int ObSPIService::spi_add_ref_cursor_refcount(ObPLExecCtx *ctx, ObObj *cursor, i
           OZ (cursor_close_impl(ctx, cursor_info, true, OB_INVALID_ID, OB_INVALID_ID, true));
         }
       } else {
-        LOG_DEBUG("spi process return ref cursor, cursor not open");
+        // cursor maybe closed already
+        if (-1 == addend) {
+          OX (cursor_info->dec_ref_count());
+        }
+        LOG_DEBUG("spi process return ref cursor, cursor not open", K(cursor_info->get_ref_count()));
       }
     }
   } else {
@@ -5836,7 +5844,7 @@ int ObSPIService::spi_copy_ref_cursor(ObPLExecCtx *ctx,
     if (OB_NOT_NULL(src_cursor) && src_cursor->isopen()) {
       LOG_DEBUG("copy ref cursor, src ref count: ", K(src_cursor->get_ref_count()));
       need_inc_ref_cnt = (0 == src_cursor->get_ref_count() && src_cursor->get_is_returning());
-      CK (0 < src_cursor->get_ref_count() || need_inc_ref_cnt);
+      OV (0 < src_cursor->get_ref_count() || need_inc_ref_cnt, OB_ERR_UNEXPECTED, KPC(src_cursor), K(need_inc_ref_cnt));
       // 到了这里先把returning状态重置，ref count先不加，等赋值成功再加
       OX (src_cursor->set_is_returning(false));
     }
@@ -7351,7 +7359,8 @@ int ObSPIService::convert_obj(ObPLExecCtx *ctx,
           }
         }
       }
-
+      ObObj &cur_time = ctx->exec_ctx_->get_physical_plan_ctx()->get_cur_time();
+      cast_ctx.cur_time_ = cur_time.get_timestamp();
       ObExprResType result_type;
       OX (result_type.set_meta(result_types[i].get_meta_type()));
       OX (result_type.set_accuracy(result_types[i].get_accuracy()));

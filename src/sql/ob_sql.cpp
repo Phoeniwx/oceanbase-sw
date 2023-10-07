@@ -1008,7 +1008,7 @@ int ObSql::do_real_prepare(const ObString &sql,
   ObIAllocator &allocator = result.get_mem_pool();
   ObSQLSessionInfo &session = result.get_session();
   ObExecContext &ectx = result.get_exec_context();
-  ObParser parser(allocator, session.get_sql_mode(), session.get_local_collation_connection());
+  ObParser parser(allocator, session.get_sql_mode(), session.get_charsets4parser());
   ParseMode parse_mode = context.is_dbms_sql_ ? DBMS_SQL_MODE :
                          (context.is_dynamic_sql_  || !is_inner_sql) ? DYNAMIC_SQL_MODE :
                          session.is_for_trigger_package() ? TRIGGER_MODE : STD_MODE;
@@ -1093,7 +1093,7 @@ int ObSql::do_real_prepare(const ObString &sql,
                                                                   pc_ctx,
                                                                   parse_result.result_tree_,
                                                                   param_store,
-                                                                  session.get_local_collation_connection()))) {
+                                                                  session.get_charsets4parser()))) {
         LOG_INFO("parameterize syntax tree failed", K(ret));
         pc_ctx.ps_need_parameterized_ = false;
         ret = OB_SUCCESS;
@@ -1265,7 +1265,7 @@ int ObSql::handle_pl_prepare(const ObString &sql,
   CK (OB_NOT_NULL(pl_prepare_result.result_set_));
   if (OB_SUCC(ret)) {
     ObIAllocator &allocator = *pl_prepare_result.get_allocator();
-    ObParser parser(allocator, sess.get_sql_mode(), sess.get_local_collation_connection());
+    ObParser parser(allocator, sess.get_sql_mode(), sess.get_charsets4parser());
     ParseMode parse_mode = pl_prepare_ctx.is_dbms_sql_ ? DBMS_SQL_MODE :
                           pl_prepare_ctx.is_dynamic_sql_ ? DYNAMIC_SQL_MODE :
                           sess.is_for_trigger_package() ? TRIGGER_MODE : STD_MODE;
@@ -1474,7 +1474,7 @@ int ObSql::handle_sql_execute(const ObString &sql,
  * params: 当前sql语句的参数列表
  * res: 直接结果集
  */
-// TODO baixian.zr/hr351303, remove is_prepare_protocol and is_dynamic_sql
+// TODO remove is_prepare_protocol and is_dynamic_sql
 int ObSql::handle_pl_execute(const ObString &sql,
                              ObSQLSessionInfo &session,
                              ParamStore &params,
@@ -2203,7 +2203,7 @@ int ObSql::handle_ps_execute(const ObPsStmtId client_stmt_id,
           context.is_execute_call_stmt_ = true;
         }
         ObParser parser(allocator, session.get_sql_mode(),
-                        session.get_local_collation_connection());
+                        session.get_charsets4parser());
         ParseResult parse_result;
         ObSqlTraits sql_traits;
         ParseMode parse_mode = context.is_dbms_sql_ ? DBMS_SQL_MODE :
@@ -2296,7 +2296,7 @@ int ObSql::handle_remote_query(const ObRemoteSqlInfo &remote_sql_info,
       //切割出来的query最后走batched multi stmt的逻辑去查询plan cache和生成计划
       ObParser parser(allocator,
                       session->get_sql_mode(),
-                      session->get_local_collation_connection(),
+                      session->get_charsets4parser(),
                       pc_ctx->def_name_ctx_);
       ObMPParseStat parse_stat;
       if (OB_FAIL(parser.split_multiple_stmt(remote_sql_info.remote_sql_, queries, parse_stat))) {
@@ -3280,7 +3280,7 @@ int ObSql::generate_stmt_with_reconstruct_sql(ObDMLStmt* &stmt,
     ParseResult parse_result;
     ObParser parser(pc_ctx->allocator_,
                     session->get_sql_mode(),
-                    session->get_local_collation_connection(),
+                    session->get_charsets4parser(),
                     pc_ctx->def_name_ctx_);
     stmt->get_query_ctx()->global_dependency_tables_.reuse();
     if (OB_FAIL(parser.parse(sql, parse_result))) {
@@ -3764,7 +3764,7 @@ int ObSql::execute_get_plan(ObPlanCache &plan_cache,
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("session is NULL", K(ret));
   } else if (PC_PS_MODE == pc_ctx.mode_ || PC_PL_MODE == pc_ctx.mode_) {
-    // TODO baixian.zr, change pl mode hit cache as text mode.
+    // TODO change pl mode hit cache as text mode.
     ObPsStmtId stmt_id = pc_ctx.fp_result_.pc_key_.key_id_;
     guard.init(PS_EXEC_HANDLE);
     if (OB_FAIL(plan_cache.get_ps_plan(guard, stmt_id, pc_ctx))) {
@@ -3946,7 +3946,7 @@ int ObSql::get_outline_data(ObSqlCtx &context,
   }
 
   if (OB_SUCC(ret) && !outline_content.empty()) {
-    ObParser parser(pc_ctx.allocator_, session->get_sql_mode(), session->get_local_collation_connection(), pc_ctx.def_name_ctx_);
+    ObParser parser(pc_ctx.allocator_, session->get_sql_mode(), session->get_charsets4parser(), pc_ctx.def_name_ctx_);
     ObSqlString sql_helper;
     ObString temp_outline_sql;
     if (OB_FAIL(sql_helper.assign_fmt("select %.*s 1 from dual", outline_content.length(),
@@ -4076,7 +4076,7 @@ int ObSql::parser_and_check(const ObString &outlined_stmt,
   } else {
     pctx->reset_datum_param_store();
     pctx->get_param_store_for_update().reuse();
-    ObParser parser(allocator, session->get_sql_mode(), session->get_local_collation_connection(), pc_ctx.def_name_ctx_);
+    ObParser parser(allocator, session->get_sql_mode(), session->get_charsets4parser(), pc_ctx.def_name_ctx_);
     if (OB_FAIL(parser.parse(outlined_stmt, parse_result,
                              pc_ctx.is_rewrite_sql_ ? UDR_SQL_MODE : STD_MODE,
                              pc_ctx.sql_ctx_.handle_batched_multi_stmt(),
@@ -4233,7 +4233,7 @@ int ObSql::parser_and_check(const ObString &outlined_stmt,
                                                                   pc_ctx,
                                                                   parse_result.result_tree_,
                                                                   pctx->get_param_store_for_update(),
-                                                                  session->get_local_collation_connection()))) {
+                                                                  session->get_charsets4parser()))) {
         bool need_retry_param = true;
         int tmp_ret = OB_SUCCESS;
         tmp_ret = OB_E(EventTable::EN_SQL_PARAM_FP_NP_NOT_SAME_ERROR) OB_SUCCESS;
@@ -4330,9 +4330,12 @@ int ObSql::pc_add_plan(ObPlanCacheCtx &pc_ctx,
     plan_added = (OB_SUCCESS == ret);
 
     if (is_batch_exec) {
-      // 只有完整的插入了计划，才做batch优化执行，否则都认为需要回退成单行逐行执行
-      if (OB_FAIL(ret)) {
-        LOG_WARN("fail to add batch_execute_plan", K(ret));
+      // Batch optimization cannot continue for errors other than OB_SQL_PC_PLAN_DUPLICATE.
+      if (OB_SQL_PC_PLAN_DUPLICATE == ret) {
+        ret = OB_SUCCESS;
+        LOG_DEBUG("this plan has been added by others, need not add again", K(phy_plan));
+      } else if (OB_FAIL(ret)) {
+        LOG_WARN("some unexpected error occured", K(ret));
         ret = OB_BATCHED_MULTI_STMT_ROLLBACK;
       } else {
         pc_ctx.sql_ctx_.self_add_plan_ = true;
@@ -4383,7 +4386,7 @@ void ObSql::check_template_sql_can_be_prepare(ObPlanCacheCtx &pc_ctx, ObPhysical
     ParseResult parse_result;
     ObParser parser(pc_ctx.allocator_,
                     session->get_sql_mode(),
-                    session->get_local_collation_connection(),
+                    session->get_charsets4parser(),
                     pc_ctx.def_name_ctx_);
     if (OB_FAIL(parser.parse(temp_sql, parse_result))) {
       LOG_DEBUG("generate syntax tree failed", K(temp_sql), K(ret));
@@ -4629,7 +4632,7 @@ int ObSql::pc_add_udr_plan(const ObUDRItemMgr::UDRItemRefGuard &item_guard,
   tmp_pc_ctx.rule_name_ = pc_ctx.rule_name_;
   const ObUDRItem *rule_item = item_guard.get_ref_obj();
   ObParser parser(allocator, session.get_sql_mode(),
-                  session.get_local_collation_connection(),
+                  session.get_charsets4parser(),
                   pc_ctx.def_name_ctx_);
   if (OB_ISNULL(rule_item)) {
     ret = OB_ERR_UNEXPECTED;
@@ -4647,7 +4650,7 @@ int ObSql::pc_add_udr_plan(const ObUDRItemMgr::UDRItemRefGuard &item_guard,
                                                                      tmp_pc_ctx,
                                                                      parse_result.result_tree_,
                                                                      param_store,
-                                                                     session.get_local_collation_connection()))) {
+                                                                     session.get_charsets4parser()))) {
     LOG_WARN("parameterize syntax tree failed", K(ret));
   } else if (OB_FAIL(pc_add_plan(tmp_pc_ctx, result, outline_state, plan_cache, plan_added))) {
     LOG_WARN("failed to add plan", K(ret));

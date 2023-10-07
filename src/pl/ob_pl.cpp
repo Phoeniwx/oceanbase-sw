@@ -1642,7 +1642,7 @@ int ObPL::parameter_anonymous_block(ObExecContext &ctx,
     ObString pc_key;
     ParseResult parse_result;
     ObPLParser pl_parser(allocator,
-                      ctx.get_my_session()->get_dtc_params().connection_collation_,
+                      ctx.get_my_session()->get_charsets4parser(),
                       ctx.get_my_session()->get_sql_mode());
     OZ (pl_parser.fast_parse(sql, parse_result));
     if (OB_SUCC(ret)) {
@@ -2353,7 +2353,7 @@ int ObPL::generate_pl_function(ObExecContext &ctx,
   if (OB_SUCC(ret)) {
     ObParser parser(ctx.get_allocator(),
                     ctx.get_my_session()->get_sql_mode(),
-                    ctx.get_my_session()->get_local_collation_connection());
+                    ctx.get_my_session()->get_charsets4parser());
     ParseResult parse_result;
     ParseMode parse_mode = ctx.get_sql_ctx()->is_dynamic_sql_ ? DYNAMIC_SQL_MODE
         : (ctx.get_my_session()->is_for_trigger_package() ? TRIGGER_MODE : STD_MODE);
@@ -2677,6 +2677,7 @@ int ObPLExecState::final(int ret)
         int64_t cursor_id = NULL == cursor ? -1 : cursor->get_id();
         if (OB_SUCCESS == tmp_ret && NULL != cursor && cursor->is_session_cursor()
             && NULL != ctx_.exec_ctx_->get_my_session()) {
+          // when execute fail. should use session close cursor
           ObSQLSessionInfo *session = ctx_.exec_ctx_->get_my_session();
           tmp_ret = session->close_cursor(cursor_id);
         }
@@ -2711,15 +2712,23 @@ int ObPLExecState::final(int ret)
         LOG_WARN("failed to destruct pl object", K(i), K(tmp_ret));
       }
     } else if (func_.get_variables().at(i).is_cursor_type()) {
-      // 函数结束这儿还需要close cursor，因为如果有异常，block结束除的close cursor就走不到，这儿还需要关闭
-      if (OB_FAIL(ret)) {
-        ObPLCursorInfo *cursor = NULL;
-        ObObjParam param;
-        ObSPIService::ObCusorDeclareLoc loc;
-        tmp_ret = ObSPIService::spi_get_cursor_info(&ctx_, func_.get_package_id(),
-                                          func_.get_routine_id(),
-                                          i, cursor, param, loc);
-        if (OB_SUCCESS == tmp_ret) {
+      int tmp_ret = OB_SUCCESS;
+      ObPLCursorInfo *cursor = NULL;
+      ObObjParam param;
+      ObSPIService::ObCusorDeclareLoc loc;
+      ObSQLSessionInfo *session = ctx_.exec_ctx_->get_my_session();
+      tmp_ret = ObSPIService::spi_get_cursor_info(&ctx_, func_.get_package_id(),
+                                        func_.get_routine_id(),
+                                        i, cursor, param, loc);
+      if (OB_SUCCESS == tmp_ret && NULL != cursor) {
+        if (0 == cursor->get_ref_count() && (cursor->is_session_cursor() || cursor->is_ref_by_refcursor())) {
+          // when refcount is 0. should use session close cursor
+          ObSQLSessionInfo *session = ctx_.exec_ctx_->get_my_session();
+          tmp_ret = session->close_cursor(cursor->get_id());
+          ret = OB_SUCCESS == ret ? tmp_ret : ret;
+          LOG_INFO("close session cursor after pl exec.", K(ret), K(tmp_ret), K(cursor->get_id()));
+        } else if (OB_FAIL(ret)) {
+          // 函数结束这儿还需要close cursor，因为如果有异常，block结束除的close cursor就走不到，这儿还需要关闭
           // 这儿为啥可能为null
           /*
           *
@@ -2743,38 +2752,20 @@ int ObPLExecState::final(int ret)
           * 上例中c1 调用了cursor init，但是c2没有调用，因为被execption打断，这个时候在final函数里面调用cursor close
           * 函数，这个obj就是null，因为c2没有调用cursor init。 另外goto也可能导致执行流变动，没有open就去close
           */
-          if (OB_NOT_NULL(cursor)) {
-            tmp_ret = ObSPIService::spi_cursor_close(
-            &ctx_, func_.get_package_id(), func_.get_routine_id(), i, true);
+          if (OB_SUCCESS != ObSPIService::spi_cursor_close(&ctx_, func_.get_package_id(),
+                                                  func_.get_routine_id(), i, true)) {
+            LOG_WARN("failed to get cursor info", K(tmp_ret),
+              K(func_.get_package_id()), K(func_.get_routine_id()), K(i));
           }
         } else {
-          LOG_WARN("failed to get cursor info", K(tmp_ret),
-             K(func_.get_package_id()), K(func_.get_routine_id()), K(i));
-        }
-        if (OB_SUCCESS != tmp_ret) {
-          LOG_WARN("failed to close cursor", K(tmp_ret),
-             K(func_.get_package_id()), K(func_.get_routine_id()), K(i));
-        }
-      } else {
-        // local cursor must be closed.
-        ObPLCursorInfo *cursor = NULL;
-        ObObjParam param;
-        ObSPIService::ObCusorDeclareLoc loc;
-        tmp_ret = ObSPIService::spi_get_cursor_info(&ctx_, func_.get_package_id(),
-                                          func_.get_routine_id(),
-                                          i, cursor, param, loc);
-        if (OB_SUCCESS == tmp_ret) {
-          if (OB_NOT_NULL(cursor) && (!cursor->is_session_cursor()
-                                   && !cursor->is_ref_by_refcursor())) {
-            tmp_ret = ObSPIService::spi_cursor_close(&ctx_, func_.get_package_id(),
-                                                     func_.get_routine_id(), i, true);
-          } else {
-            LOG_WARN("failed to close cursor info", K(tmp_ret),
-             K(func_.get_package_id()), K(func_.get_routine_id()), K(i));
+          // local cursor must be closed.
+          if (!cursor->is_session_cursor() && !cursor->is_ref_by_refcursor()) {
+            if (OB_SUCCESS != ObSPIService::spi_cursor_close(&ctx_, func_.get_package_id(),
+                                                    func_.get_routine_id(), i, true)) {
+              LOG_WARN("failed to close cursor info", K(tmp_ret),
+              K(func_.get_package_id()), K(func_.get_routine_id()), K(i));
+            }
           }
-        } else {
-          LOG_WARN("failed to get cursor info", K(tmp_ret),
-             K(func_.get_package_id()), K(func_.get_routine_id()), K(i));
         }
       }
     }
@@ -2860,7 +2851,12 @@ int ObPLExecState::init_complex_obj(ObIAllocator &allocator,
   } else if (real_pl_type->is_udt_type()) {
     ObPLUDTNS ns(*schema_guard);
     OZ (ns.init_complex_obj(allocator, *real_pl_type, obj, false));
-  } else if (real_pl_type->is_package_type() || real_pl_type->is_rowtype_type()) {
+  } else if (OB_NOT_NULL(session->get_pl_context())
+      && OB_NOT_NULL(session->get_pl_context()->get_current_ctx())) {
+    pl::ObPLINS *ns = session->get_pl_context()->get_current_ctx();
+    CK (OB_NOT_NULL(ns));
+    OZ (ns->init_complex_obj(allocator, *real_pl_type, obj, false));
+  } else {
     ObPLResolveCtx ns(allocator,
                       *session,
                       *schema_guard,
@@ -2868,11 +2864,6 @@ int ObPLExecState::init_complex_obj(ObIAllocator &allocator,
                       *sql_proxy,
                       false);
     OZ (ns.init_complex_obj(allocator, *real_pl_type, obj, false));
-  } else if (OB_NOT_NULL(session->get_pl_context())
-      && OB_NOT_NULL(session->get_pl_context()->get_current_ctx())) {
-    pl::ObPLINS *ns = session->get_pl_context()->get_current_ctx();
-    CK (OB_NOT_NULL(ns));
-    OZ (ns->init_complex_obj(allocator, *real_pl_type, obj, false));
   }
   OX (obj.set_udt_id(real_pl_type->get_user_type_id()));
   return ret;
@@ -3241,11 +3232,17 @@ do {                                                                  \
                                              *get_allocator()));
             OX (get_params().at(i) = tmp);
           } else {
+            // same type, we already check this on resolve stage, here directly assign value to symbol.
+            get_params().at(i) = params->at(i);
             if (get_params().at(i).is_ref_cursor_type()) {
-              get_params().at(i) = params->at(i);
               get_params().at(i).set_is_ref_cursor_type(true);
-            } else {
-              get_params().at(i) = params->at(i);
+            } else if (pl_type.is_collection_type() && OB_INVALID_ID == params->at(i).get_udt_id()) {
+              ObPLComposite *composite = NULL;
+              get_params().at(i).set_udt_id(pl_type.get_user_type_id());
+              composite = reinterpret_cast<ObPLComposite *>(params->at(i).get_ext());
+              if (OB_NOT_NULL(composite) && composite->is_collection() && OB_INVALID_ID == composite->get_id()) {
+                composite->set_id(pl_type.get_user_type_id());
+              }
             }
           }
         }
@@ -3325,6 +3322,7 @@ int ObPLExecState::init(const ParamStore *params, bool is_anonymous)
 
   OX (exec_ctx_bak_.backup(*ctx_.exec_ctx_));
   OX (ctx_.exec_ctx_->set_physical_plan_ctx(&get_physical_plan_ctx()));
+  OX (ctx_.exec_ctx_->get_physical_plan_ctx()->set_cur_time(ObTimeUtility::current_time(), *ctx_.exec_ctx_->get_my_session()));
   OX (need_reset_physical_plan_ = true);
   if (OB_SUCC(ret) && func_.get_expr_op_size() > 0)  {
     OZ (ctx_.exec_ctx_->init_expr_op(func_.get_expr_op_size(), ctx_.allocator_));
@@ -4310,7 +4308,7 @@ int ObPLINS::get_size(ObPLTypeSize type,
   const ObUserDefinedType *user_type = NULL;
   CK (pl_type.is_composite_type());
   OZ (get_user_type(pl_type.get_user_type_id(), user_type, allocator));
-  CK (OB_NOT_NULL(user_type));
+  OV (OB_NOT_NULL(user_type), OB_ERR_UNEXPECTED, K(pl_type));
   OZ (user_type->get_size(*this, type, size));
   return ret;
 }

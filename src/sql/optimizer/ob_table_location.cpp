@@ -829,14 +829,16 @@ void ObTableLocation::reset()
     }
   }
   calc_nodes_.reset();
-
-
   stmt_type_ = stmt::T_NONE;
-
+  vies_.reset();
+  sub_vies_.reset();
+  se_part_expr_ = NULL;
+  se_gen_col_expr_ = NULL;
+  se_subpart_expr_ = NULL;
+  se_sub_gen_col_expr_ = NULL;
   part_hint_ids_.reset();
-
+  part_col_type_ = ObNullType;
   related_list_.reset();
-
   inner_allocator_.reset();
   part_collation_type_ = CS_TYPE_INVALID;
   subpart_col_type_ = ObNullType;
@@ -2156,16 +2158,18 @@ int ObTableLocation::record_in_dml_partition_info(const ObDMLStmt &stmt,
       RowDesc value_row_desc;
       OZ(add_se_value_expr(value_expr->get_param_expr(pos1),
                            value_row_desc, 0, exec_ctx, vies_));
-      for (int64_t i = 0; OB_SUCC(ret) && i < vies_.count(); i++) {
-        vies_.at(i).dst_type_ = op_left_expr->get_param_expr(0)->get_result_type().get_type();
-        vies_.at(i).dst_cs_type_ = op_left_expr->get_param_expr(0)
-                                               ->get_result_type().get_collation_type();
-      }
       OZ(add_se_value_expr(value_expr->get_param_expr(pos2),
                            value_row_desc, 0, exec_ctx, sub_vies_));
+    }
+    if (OB_SUCC(ret) && hit) {
+      for (int64_t i = 0; OB_SUCC(ret) && i < vies_.count(); i++) {
+        vies_.at(i).dst_type_ = op_left_expr->get_param_expr(pos1)->get_result_type().get_type();
+        vies_.at(i).dst_cs_type_ = op_left_expr->get_param_expr(pos1)
+                                               ->get_result_type().get_collation_type();
+      }
       for (int64_t i = 0; OB_SUCC(ret) && i < sub_vies_.count(); i++) {
-        sub_vies_.at(i).dst_type_ = op_left_expr->get_param_expr(1)->get_result_type().get_type();
-        sub_vies_.at(i).dst_cs_type_ = op_left_expr->get_param_expr(1)
+        sub_vies_.at(i).dst_type_ = op_left_expr->get_param_expr(pos2)->get_result_type().get_type();
+        sub_vies_.at(i).dst_cs_type_ = op_left_expr->get_param_expr(pos2)
                                                    ->get_result_type().get_collation_type();
       }
     }

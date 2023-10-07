@@ -5,6 +5,7 @@
 #include "lib/oblog/ob_log_module.h"
 #include "lib/ob_define.h"
 #include "lib/oblog/ob_log.h"
+#include "ob_clock_generator.h"
 #include "src/share/ob_errno.h"
 #include "src/share/scn.h"
 #include "src/share/ob_occam_time_guard.h"
@@ -36,6 +37,14 @@ enum class NodePosition {
   KV_CACHE,
   TABLET,
   POSITION_END,
+};
+
+enum class FowEachRowAction {
+  CALCUALTE_FLUSH_SCN,
+  COUNT_NODES_BEFLOW_FLUSH_SCN,
+  CALCULATE_REC_SCN,
+  RECYCLE,
+  RESET,
 };
 
 inline const char *obj_to_string(NodePosition pos) {

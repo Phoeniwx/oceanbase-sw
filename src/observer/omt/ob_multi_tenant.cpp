@@ -684,14 +684,41 @@ int ObMultiTenant::create_hidden_sys_tenant()
 {
   int ret = OB_SUCCESS;
   const uint64_t tenant_id = OB_SYS_TENANT_ID;
+  omt::ObTenant *tenant = nullptr;
   ObTenantMeta meta;
-
   if (OB_FAIL(construct_meta_for_hidden_sys(meta))) {
     LOG_ERROR("fail to construct meta", K(ret));
-  } else if (OB_FAIL(create_tenant(meta, true/* write_slog*/))) {
+  } else if (OB_FAIL(create_tenant(meta, true /* write_slog */))) {
     LOG_ERROR("create hidden sys tenant failed", K(ret));
   }
+  return ret;
+}
 
+int ObMultiTenant::update_hidden_sys_tenant()
+{
+  int ret = OB_SUCCESS;
+  const uint64_t tenant_id = OB_SYS_TENANT_ID;
+  omt::ObTenant *tenant = nullptr;
+  ObTenantMeta meta;
+  if (OB_FAIL(get_tenant(tenant_id, tenant))) { // sys tenant will not be deleted
+    LOG_WARN("failed to get sys tenant", K(ret));
+  } else if (OB_FAIL(construct_meta_for_hidden_sys(meta))) {
+    LOG_ERROR("fail to construct meta", K(ret));
+  } else {
+    int64_t bucket_lock_idx = -1;
+    bool lock_succ = false;
+    if (OB_FAIL(bucket_lock_.wrlock(bucket_lock_idx = get_tenant_lock_bucket_idx(tenant_id)))) {
+      LOG_WARN("fail to try_wrlock for update tenant unit", K(ret), K(tenant_id), K(bucket_lock_idx));
+    } else if (FALSE_IT(lock_succ = true)) {
+    } else if (!tenant->is_hidden() || meta.unit_ == tenant->get_unit()) {
+      // do nothing
+    } else if (OB_FAIL(update_tenant_unit_no_lock(meta.unit_))) {
+      LOG_WARN("fail to update tenant unit", K(ret), K(tenant_id));
+    }
+    if (lock_succ) {
+      bucket_lock_.unlock(bucket_lock_idx);
+    }
+  }
   return ret;
 }
 
@@ -2243,7 +2270,7 @@ void ObMultiTenant::run1()
     }
     ob_usleep(TIME_SLICE_PERIOD);
 
-    if (REACH_TIME_INTERVAL(30000000L)) {  // every 30s
+    if (REACH_TIME_INTERVAL(10000000L)) {  // every 10s
       SpinRLockGuard guard(lock_);
       for (TenantList::iterator it = tenants_.begin(); it != tenants_.end(); it++) {
         if (!OB_ISNULL(*it)) {

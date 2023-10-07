@@ -52,27 +52,38 @@ public:
     INVALID_DATE = 2,
     NON_DATE = 3,
     NULL_DATE = 4,
+    ZERO_DATE = 5,
   };
 
 private:
   //disallow copy
   DISALLOW_COPY_AND_ASSIGN(ObExprAlignDate4Cmp);
 
-  static bool day_over_limit(const ObTime &ob_time);
+  static bool is_day_over_limit(const ObTime &ob_time);
+  static int32_t get_day_over_limit(const ObTime &ob_time);
   static void set_valid_time_floor(ObTime &ob_time);
+  static void push_back_n_days(ObTime &ob_time, int32_t offset);
+  static DateArgType validate_time(ObTime &ob_time);
   static int integer_to_ob_time(const int64_t &date, DateArgType &date_arg_type, ObTime &ob_time);
   static int double_to_ob_time(const double &date, DateArgType &date_arg_type, ObTime &ob_time);
   static int number_to_ob_time(const number::ObNumber &date, DateArgType &date_arg_type, ObTime &ob_time);
   static int str_to_ob_time(const ObString &date, DateArgType &date_arg_type, ObTime &ob_time);
-  static int datum_to_ob_time(const ObDatum *date_datum,
+  static int datum_to_ob_time(const ObExpr &expr,
+                              const ObDatum *date_datum,
                               const ObObjType &date_arg_obj_type,
                               DateArgType &date_arg_type,
                               ObTime &ob_time);
+  static bool is_zero_time(ObTime &ob_time);
   static int set_res(ObDatum &res, ObTime &ob_time,
                      const ObObjType &res_type,
                      const bool is_valid_time,
                      const bool offset,
-                     const bool is_zero_on_warn);
+                     const bool is_zero_on_warn,
+                     const bool is_no_zero_date,
+                     const bool is_warn_on_fail);
+  static int set_zero_res(ObDatum &res, ObTime &ob_time,
+                          const ObObjType &res_type,
+                          bool is_no_zero_date);
 };
 }
 }

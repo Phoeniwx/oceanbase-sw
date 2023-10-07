@@ -32,6 +32,50 @@ using namespace schema;
 using namespace sql;
 namespace pl {
 
+int ObPLCompiler::check_dep_schema(ObSchemaGetterGuard &schema_guard,
+                                   const DependenyTableStore &dep_schema_objs)
+{
+  int ret = OB_SUCCESS;
+  uint64_t tenant_id = OB_INVALID_ID;
+  for (int64_t i = 0; OB_SUCC(ret) && i < dep_schema_objs.count(); ++i) {
+    tenant_id = MTL_ID();
+    if (TABLE_SCHEMA != dep_schema_objs.at(i).get_schema_type()) {
+      int64_t new_version = 0;
+      if (PACKAGE_SCHEMA == dep_schema_objs.at(i).get_schema_type()
+          || UDT_SCHEMA == dep_schema_objs.at(i).get_schema_type()
+          || ROUTINE_SCHEMA == dep_schema_objs.at(i).get_schema_type()) {
+        tenant_id = pl::get_tenant_id_by_object_id(dep_schema_objs.at(i).object_id_);
+      }
+      if (OB_FAIL(schema_guard.get_schema_version(dep_schema_objs.at(i).get_schema_type(),
+                                                  tenant_id,
+                                                  dep_schema_objs.at(i).object_id_,
+                                                  new_version))) {
+        LOG_WARN("failed to get schema version",
+                  K(ret), K(tenant_id), K(dep_schema_objs.at(i)));
+      } else if (OB_INVALID_VERSION == new_version ||
+                 new_version != dep_schema_objs.at(i).version_) {
+        LOG_WARN("schema version is invalid", K(ret), K(dep_schema_objs.at(i)), K(new_version));
+      }
+    } else {
+      const ObSimpleTableSchemaV2 *table_schema = nullptr;
+      if (OB_FAIL(schema_guard.get_simple_table_schema(MTL_ID(),
+                                                      dep_schema_objs.at(i).object_id_,
+                                                      table_schema))) {
+        LOG_WARN("failed to get table schema", K(ret), K(dep_schema_objs.at(i)));
+      } else if (nullptr == table_schema) {
+        LOG_WARN("get an unexpected null table schema", K(dep_schema_objs.at(i).object_id_));
+      } else if (table_schema->is_index_table()) {
+        // do nothing
+      } else if (table_schema->get_schema_version() != dep_schema_objs.at(i).version_) {
+        LOG_WARN("schema version is invalid", K(ret), K(dep_schema_objs.at(i)), K(table_schema->get_schema_version()));
+      }
+    }
+  }
+
+  return ret;
+}
+
+
 int ObPLCompiler::init_anonymous_ast(
   ObPLFunctionAST &func_ast,
   ObIAllocator &allocator,
@@ -225,6 +269,9 @@ int ObPLCompiler::compile(
             func.set_sys_schema_version(sys_schema_version);
           }
         }
+        if (OB_SUCC(ret) && OB_FAIL(check_dep_schema(schema_guard_, func.get_dependency_table()))) {
+          LOG_WARN("fail to check schema version", K(ret));
+        }
       } // end of HEAP_VAR
     }
   }
@@ -367,7 +414,7 @@ int ObPLCompiler::compile(const uint64_t id, ObPLFunction &func)
     if (OB_SUCC(ret)) {
       ObString body = proc->get_routine_body(); //获取body字符串
       ObDataTypeCastParams dtc_params = session_info_.get_dtc_params();
-      ObPLParser parser(allocator_, dtc_params.connection_collation_, session_info_.get_sql_mode());
+      ObPLParser parser(allocator_, session_info_.get_charsets4parser(), session_info_.get_sql_mode());
       if (OB_FAIL(ObSQLUtils::convert_sql_text_from_schema_for_resolve(
                     allocator_, dtc_params, body))) {
         LOG_WARN("fail to do charset convert", K(ret), K(body));
@@ -433,6 +480,9 @@ int ObPLCompiler::compile(const uint64_t id, ObPLFunction &func)
             func.set_sys_schema_version(sys_schema_version);
             func.set_ret_type(func_ast.get_ret_type());
           }
+        }
+        if (OB_SUCC(ret) && OB_FAIL(check_dep_schema(schema_guard_, func.get_dependency_table()))) {
+          LOG_WARN("fail to check schema version", K(ret), K(tenant_id));
         }
       } // end of HEAP_VAR
     }
@@ -598,7 +648,7 @@ int ObPLCompiler::analyze_package(const ObString &source,
   CK (!source.empty());
   CK (package_ast.is_inited());
   if (OB_SUCC(ret)) {
-    ObPLParser parser(allocator_, session_info_.get_local_collation_connection(), session_info_.get_sql_mode());
+    ObPLParser parser(allocator_, session_info_.get_charsets4parser(), session_info_.get_sql_mode());
     ObStmtNodeTree *parse_tree = NULL;
     CHECK_COMPATIBILITY_MODE(&session_info_);
     ObPLResolver resolver(allocator_,
@@ -745,6 +795,7 @@ int ObPLCompiler::compile_package(const ObPackageInfo &package_info,
   OX (package.set_can_cached(package_ast.get_can_cached()));
   OX (package_ast.get_serially_reusable() ? package.set_serially_reusable() : void(NULL));
   session_info_.set_for_trigger_package(saved_trigger_flag);
+  OZ (check_dep_schema(schema_guard_, package.get_dependency_table()));
   OZ (update_schema_object_dep_info(package_ast.get_dependency_table(),
                                     package_info.get_tenant_id(),
                                     package_info.get_owner_id(),

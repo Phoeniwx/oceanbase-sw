@@ -609,6 +609,7 @@ ObTableScanOp::ObTableScanOp(ObExecContext &exec_ctx, const ObOpSpec &spec, ObOp
     range_buffer_idx_(0),
     group_size_(0),
     max_group_size_(0),
+    in_rescan_(false),
     global_index_lookup_op_(NULL),
     spat_index_()
 {
@@ -660,6 +661,7 @@ OB_INLINE int ObTableScanOp::create_one_das_task(ObDASTabletLoc *tablet_loc)
     scan_op->set_scan_rtdef(&tsc_rtdef_.scan_rtdef_);
     scan_op->set_can_part_retry(nullptr == tsc_rtdef_.scan_rtdef_.sample_info_
                                 && can_partition_retry());
+    scan_op->set_inner_rescan(in_rescan_);
     tsc_rtdef_.scan_rtdef_.table_loc_->is_reading_ = true;
     if (!MY_SPEC.is_index_global_ && MY_CTDEF.lookup_ctdef_ != nullptr) {
       //is local index lookup, need to set the lookup ctdef to the das scan op
@@ -778,10 +780,15 @@ int ObTableScanOp::prepare_all_das_tasks()
   int ret = OB_SUCCESS;
   if (MY_SPEC.batch_scan_flag_) {
     if (OB_SUCC(ret)) {
-      group_size_ = tsc_rtdef_.bnlj_params_.at(0).second->count_;
-      if (OB_UNLIKELY(group_size_ > max_group_size_)) {
+      if (!tsc_rtdef_.bnlj_params_.empty()) {
+        group_size_ = tsc_rtdef_.bnlj_params_.at(0).second->count_;
+        if (OB_UNLIKELY(group_size_ > max_group_size_)) {
+          ret = OB_ERR_UNEXPECTED;
+          LOG_WARN("The amount of data exceeds the pre allocated memory", K(ret));
+        }
+      } else {
         ret = OB_ERR_UNEXPECTED;
-        LOG_WARN("The amount of data exceeds the pre allocated memory", K(ret));
+        LOG_WARN("batch nlj params is empty", K(ret));
       }
     }
   }
@@ -1015,10 +1022,15 @@ int ObTableScanOp::prepare_batch_scan_range()
   ObPhysicalPlanCtx *plan_ctx = GET_PHY_PLAN_CTX(ctx_);
   int64_t batch_size = 0;
   if (OB_SUCC(ret)) {
-    group_size_ = tsc_rtdef_.bnlj_params_.at(0).second->count_;
-    if (OB_UNLIKELY(group_size_ > max_group_size_)) {
+    if (!tsc_rtdef_.bnlj_params_.empty()) {
+      group_size_ = tsc_rtdef_.bnlj_params_.at(0).second->count_;
+      if (OB_UNLIKELY(group_size_ > max_group_size_)) {
+        ret = OB_ERR_UNEXPECTED;
+        LOG_WARN("The amount of data exceeds the pre allocated memory", K(ret));
+      }
+    } else {
       ret = OB_ERR_UNEXPECTED;
-      LOG_WARN("The amount of data exceeds the pre allocated memory", K(ret));
+      LOG_WARN("batch nlj params is empry", K(ret));
     }
   }
   for (int64_t i = 0; OB_SUCC(ret) && i < group_size_; ++i) {
@@ -1515,6 +1527,7 @@ int ObTableScanOp::fill_storage_feedback_info()
 int ObTableScanOp::inner_rescan()
 {
   int ret = OB_SUCCESS;
+  in_rescan_ = true;
   if (OB_FAIL(ObOperator::inner_rescan())) {
     LOG_WARN("failed to exec inner rescan");
   } else if (MY_SPEC.is_global_index_back()) {
@@ -1617,7 +1630,6 @@ int ObTableScanOp::local_iter_rescan()
         }
       }
       if (OB_SUCC(ret)) {
-        scan_op->set_inner_rescan(true);
         if (OB_FAIL(cherry_pick_range_by_tablet_id(scan_op))) {
           LOG_WARN("prune query range by partition id failed", K(ret));
         } else if (OB_FAIL(init_das_group_range(0, group_size_))) {

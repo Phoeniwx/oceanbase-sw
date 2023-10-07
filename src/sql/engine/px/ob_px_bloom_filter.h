@@ -59,7 +59,8 @@ OB_UNIS_VERSION_V(1);
 public:
   ObPxBloomFilter();
   virtual ~ObPxBloomFilter() {};
-  int init(int64_t data_length, common::ObIAllocator &allocator, int64_t tenant_id, double fpp = 0.01);
+  int init(int64_t data_length, common::ObIAllocator &allocator, int64_t tenant_id,
+           double fpp = 0.01, int64_t max_filter_size = 2147483648 /*2G*/);
   int init(const ObPxBloomFilter *filter);
   void reset_filter();
   inline int might_contain(uint64_t hash, bool &is_match) {
@@ -101,11 +102,13 @@ private:
   bool set(uint64_t block_begin, uint64_t index);
   void calc_num_of_hash_func();
   void calc_num_of_bits();
+  void align_max_bit_count(int64_t max_filter_size);
   int might_contain_nonsimd(uint64_t hash, bool &is_match);
   int might_contain_simd(uint64_t hash, bool &is_match);
 
 private:
   int64_t data_length_;          //原始数据长度
+  int64_t max_bit_count_;        // max filter size, default 2GB, so the max bit count = 17179869184;
   int64_t bits_count_;           //filter的位个数
   double  fpp_;                  //误判率
   int64_t hash_func_count_;      //哈希函数个数
@@ -127,6 +130,8 @@ public:
 DISALLOW_COPY_AND_ASSIGN(ObPxBloomFilter);
 };
 
+class ObLogJoinFilter;
+
 struct ObPxBFStaticInfo
 {
   OB_UNIS_VERSION(1);
@@ -135,12 +140,12 @@ public:
   : is_inited_(false), tenant_id_(common::OB_INVALID_TENANT_ID),
     filter_id_(common::OB_INVALID_ID), server_id_(common::OB_INVALID_ID),
     is_shared_(false), skip_subpart_(false),
-    p2p_dh_id_(OB_INVALID_ID), is_shuffle_(false)
+    p2p_dh_id_(OB_INVALID_ID), is_shuffle_(false), log_join_filter_create_op_(nullptr)
   {}
   int init(int64_t tenant_id, int64_t filter_id,
            int64_t server_id, bool is_shared,
            bool skip_subpart, int64_t p2p_dh_id,
-           bool is_shuffle);
+           bool is_shuffle, ObLogJoinFilter *log_join_filter_create_op);
   bool is_inited_;
   int64_t tenant_id_;
   int64_t filter_id_;
@@ -152,6 +157,7 @@ public:
   TO_STRING_KV(K(is_inited_), K(tenant_id_), K(filter_id_),
               K(server_id_), K(is_shared_), K(skip_subpart_),
               K(is_shuffle_), K(p2p_dh_id_));
+  ObLogJoinFilter *log_join_filter_create_op_; // not need to serialize, only used in optimizor
 };
 
 class ObPXBloomFilterHashWrapper

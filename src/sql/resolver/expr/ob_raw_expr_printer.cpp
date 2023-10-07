@@ -709,11 +709,18 @@ int ObRawExprPrinter::print(ObOpRawExpr *expr)
     case T_OBJ_ACCESS_REF: {
       ObObjAccessRawExpr *obj_access_expr = static_cast<ObObjAccessRawExpr*>(expr);
       bool parent_is_table = false;
-      for (int64_t i = 0; OB_SUCC(ret) && i < obj_access_expr->get_orig_access_idxs().count(); ++i) {
-        pl::ObObjAccessIdx &current_idx = obj_access_expr->get_orig_access_idxs().at(i);
+      ObIArray<pl::ObObjAccessIdx> &access_idxs = obj_access_expr->get_orig_access_idxs();
+      int64_t start = access_idxs.count() - 1;
+      for (;start > 0; --start) {
+        if (OB_NOT_NULL(access_idxs.at(start).get_sysfunc_)) {
+          break;
+        }
+      }
+      for (int64_t i = start; OB_SUCC(ret) && i < access_idxs.count(); ++i) {
+        pl::ObObjAccessIdx &current_idx = access_idxs.at(i);
         if (parent_is_table) {
           DATA_PRINTF("(");
-        } else if (i > 0) {
+        } else if (i > start) {
           DATA_PRINTF(".");
         }
         if (OB_NOT_NULL(current_idx.get_sysfunc_)) {
@@ -2545,6 +2552,11 @@ int ObRawExprPrinter::print(ObSysFunRawExpr *expr)
     ObString func_name = expr->get_func_name();
     ObExprOperatorType expr_type = expr->get_expr_type();
     switch (expr_type) {
+      case T_FUN_SYS_ALIGN_DATE4CMP: {
+        CK(3 == expr->get_param_count());
+        PRINT_EXPR(expr->get_param_expr(0));
+        break;
+      }
       case T_FUN_SYS_UTC_TIMESTAMP:
       case T_FUN_SYS_UTC_TIME: {
         const int16_t scale = static_cast<int16_t>(expr->get_result_type().get_scale());

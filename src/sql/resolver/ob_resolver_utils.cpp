@@ -511,16 +511,22 @@ if ((OB_FAIL(ret) || 0 == routines.count())   \
         TRY_SYNONYM(package_name);
         if (OB_SUCC(ret) && need_try_synonym) {
           if (OB_FAIL(schema_checker.get_package_id( // try synonym user package now!
-              is_sys_database_id(object_db_id) ? OB_SYS_TENANT_ID : tenant_id,
-              object_db_id, object_name, compatible_mode, package_id))
+              tenant_id, object_db_id, object_name, compatible_mode, package_id))
               || OB_INVALID_ID == package_id) {
-            if (OB_FAIL(schema_checker.get_udt_id( // try synonym user type now!
-                  tenant_id, object_db_id, OB_INVALID_ID, object_name, package_id))
+            if ((is_sys_database_id(object_db_id)
+                  && OB_FAIL(schema_checker.get_package_id(OB_SYS_TENANT_ID, object_db_id, object_name, compatible_mode, package_id)))
                 || OB_INVALID_ID == package_id) {
-              LOG_WARN("failed to get package id", K(ret));
-            } else { // it`s user udt, get udt routines
-              OZ (schema_checker.get_udt_routine_infos(
-                tenant_id, object_db_id, package_id, routine_name, routine_type, routines));
+              if (OB_FAIL(schema_checker.get_udt_id( // try synonym user type now!
+                    tenant_id, object_db_id, OB_INVALID_ID, object_name, package_id))
+                  || OB_INVALID_ID == package_id) {
+                LOG_WARN("failed to get package id", K(ret));
+              } else { // it`s user udt, get udt routines
+                OZ (schema_checker.get_udt_routine_infos(
+                  tenant_id, object_db_id, package_id, routine_name, routine_type, routines));
+              }
+            } else { // it`s user pacakge, get package routines
+              OZ (schema_checker.get_package_routine_infos(
+                tenant_id, package_id, object_db_id, routine_name, routine_type, routines));
             }
           } else { // it`s user pacakge, get package routines
             OZ (schema_checker.get_package_routine_infos(
@@ -4292,7 +4298,7 @@ int ObResolverUtils::resolve_generated_column_expr(ObResolverParams &params,
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("allocator is null", K(ret));
   } else if (OB_FAIL(ObRawExprUtils::parse_expr_node_from_str(
-                expr_str, params.session_info_->get_local_collation_connection(),
+                expr_str, params.session_info_->get_charsets4parser(),
                 *params.allocator_, expr_node))) {
     LOG_WARN("parse expr node from str failed", K(ret), K(expr_str));
   } else if (OB_FAIL(resolve_generated_column_expr(params, expr_node, tbl_schema,
@@ -4332,7 +4338,7 @@ int ObResolverUtils::resolve_generated_column_expr(ObResolverParams &params,
     LOG_WARN("allocator or session is null", K(ret),
              KP(params.allocator_), KP(params.session_info_));
   } else if (OB_FAIL(ObRawExprUtils::parse_expr_node_from_str(
-                      expr_str, params.session_info_->get_local_collation_connection(),
+                      expr_str, params.session_info_->get_charsets4parser(),
                       *params.allocator_, expr_node))) {
     LOG_WARN("parse expr node from str failed", K(ret), K(expr_str));
   } else if (OB_FAIL(resolve_generated_column_expr(params,
@@ -4751,7 +4757,7 @@ int ObResolverUtils::resolve_generated_column_info(const ObString &expr_str,
   int ret = OB_SUCCESS;
   const ParseNode *node = NULL;
   if (OB_FAIL(ObRawExprUtils::parse_expr_node_from_str(
-              expr_str, CS_TYPE_UTF8MB4_BIN,
+              expr_str, ObCharsets4Parser(),
               allocator, node))) {
     LOG_WARN("parse expr node from string failed", K(ret), K(expr_str));
   } else if (OB_ISNULL(node)) {
@@ -4857,7 +4863,7 @@ int ObResolverUtils::resolve_default_expr_v2_column_expr(ObResolverParams &param
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("allocator or session is null", K(ret));
   } else if (OB_FAIL(ObRawExprUtils::parse_expr_node_from_str(
-              expr_str, params.session_info_->get_local_collation_connection(),
+              expr_str, params.session_info_->get_charsets4parser(),
               *params.allocator_, expr_node))) {
     LOG_WARN("parse expr node from str failed", K(ret), K(expr_str));
   } else if (OB_FAIL(resolve_default_expr_v2_column_expr(params, expr_node,  default_expr_v2_column, expr, allow_sequence))) {
