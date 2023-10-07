@@ -760,7 +760,7 @@ int ObInnerTableSchema::dba_ob_index_usage_schema(ObTableSchema &table_schema)
   table_schema.set_collation_type(ObCharset::get_default_collation(ObCharset::get_default_charset()));
 
   if (OB_SUCC(ret)) {
-    if (OB_FAIL(table_schema.set_view_definition(R"__(       SELECT         TENANT_ID,         TABLE_ID,         OBJECT_ID,         NAME as INDEX_NAME,         OWNER as USER_NAME,         TOTAL_EXEC_COUNT as REF_COUNT,         FLOOR(TOTAL_EXEC_COUNT / (UNIX_TIMESTAMP(LAST_USED) - UNIX_TIMESTAMP(START_USED))) as REF_FREQUENCY        FROM oceanbase.__all_index_usage_info     )__"))) {
+    if (OB_FAIL(table_schema.set_view_definition(R"__(       SELECT         iut.TENANT_ID,         iut.TABLE_ID,         iut.OBJECT_ID,         t.TABLE_NAME as INDEX_NAME,         te.TENANT_NAME as USER_NAME,         iut.TOTAL_EXEC_COUNT as REF_COUNT,         iut.START_USED as FIRST_USED_TIME       FROM oceanbase.__all_index_usage_info iut        left JOIN oceanbase.__all_table t ON        iut.OBJECT_ID = t.TABLE_ID AND iut.TENANT_ID = t.TENANT_ID         JOIN oceanbase.__all_tenant te ON        iut.TENANT_ID = te.TENANT_ID     )__"))) {
       LOG_ERROR("fail to set view_definition", K(ret));
     }
   }

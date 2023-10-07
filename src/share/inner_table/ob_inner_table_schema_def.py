@@ -6301,11 +6301,11 @@ def_table_schema(
 # 485 : __all_clone_job
 # 486 : __all_clone_job_history
 
-# 487 : __all_index_usage_info
+# 490 : __all_index_usage_info
 def_table_schema(
   owner = 'yangjiali.yjl',
   table_name     = '__all_index_usage_info',
-  table_id       = '487',
+  table_id       = '490',
   table_type     = 'SYSTEM_TABLE',
   gm_columns     = ['gmt_create', 'gmt_modified'],
   rowkey_columns = [
@@ -6316,10 +6316,10 @@ def_table_schema(
   in_tenant_space = True,
   normal_columns = [
       ('name', 'varchar:128'),			    # index table name
-      ('owner', 'varchar:128'),			    # user name
-      ('total_access_count', 'int'),		# true or false
-      ('total_exec_count', 'int'),		  # used count
-      ('total_rows_returned', 'int'),		# reserved.
+      ('owner', 'varchar:128'),			    # tenant name
+      ('total_access_count', 'bigint:20'),		# access count
+      ('total_exec_count', 'bigint:20'),		  # used count
+      ('total_rows_returned', 'bigint:20'),		# reserved.
       ('start_used', 'timestamp'),		  # first time to used
       ('last_used','timestamp'),			  # last time to use
       ('last_flush_time', 'timestamp')  # last time to flush
@@ -29918,14 +29918,18 @@ def_table_schema(
     normal_columns = [],
     view_definition = """
       SELECT
-        TENANT_ID,
-        TABLE_ID,
-        OBJECT_ID,
-        NAME as INDEX_NAME,
-        OWNER as USER_NAME,
-        TOTAL_EXEC_COUNT as REF_COUNT,
-        FLOOR(TOTAL_EXEC_COUNT / (UNIX_TIMESTAMP(LAST_USED) - UNIX_TIMESTAMP(START_USED))) as REF_FREQUENCY 
-      FROM oceanbase.__all_index_usage_info
+        iut.TENANT_ID,
+        iut.TABLE_ID,
+        iut.OBJECT_ID,
+        t.TABLE_NAME as INDEX_NAME,
+        te.TENANT_NAME as USER_NAME,
+        iut.TOTAL_EXEC_COUNT as REF_COUNT,
+        iut.START_USED as FIRST_USED_TIME
+      FROM oceanbase.__all_index_usage_info iut 
+      left JOIN oceanbase.__all_table t ON 
+      iut.OBJECT_ID = t.TABLE_ID AND iut.TENANT_ID = t.TENANT_ID  
+      JOIN oceanbase.__all_tenant te ON 
+      iut.TENANT_ID = te.TENANT_ID
     """.replace("\n", " "),    
 )
 

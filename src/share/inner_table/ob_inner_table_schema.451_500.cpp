@@ -7110,8 +7110,8 @@ int ObInnerTableSchema::all_index_usage_info_schema(ObTableSchema &table_schema)
       ObIntType, //column_type
       CS_TYPE_INVALID, //column_collation_type
       sizeof(int64_t), //column_length
-      -1, //column_precision
-      -1, //column_scale
+      20, //column_precision
+      0, //column_scale
       false, //is_nullable
       false); //is_autoincrement
   }
@@ -7125,8 +7125,8 @@ int ObInnerTableSchema::all_index_usage_info_schema(ObTableSchema &table_schema)
       ObIntType, //column_type
       CS_TYPE_INVALID, //column_collation_type
       sizeof(int64_t), //column_length
-      -1, //column_precision
-      -1, //column_scale
+      20, //column_precision
+      0, //column_scale
       false, //is_nullable
       false); //is_autoincrement
   }
@@ -7140,8 +7140,8 @@ int ObInnerTableSchema::all_index_usage_info_schema(ObTableSchema &table_schema)
       ObIntType, //column_type
       CS_TYPE_INVALID, //column_collation_type
       sizeof(int64_t), //column_length
-      -1, //column_precision
-      -1, //column_scale
+      20, //column_precision
+      0, //column_scale
       false, //is_nullable
       false); //is_autoincrement
   }
