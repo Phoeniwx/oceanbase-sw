@@ -181,7 +181,7 @@ int ObIndexUsageInfoMgr::sample(const UpdateFunc& update_func, const DelFunc& de
         continue;
       }
       if (sample_count < map_size &&
-          common::ObRandom::rand(0, map_size - index) >= sample_count) {
+          common::ObRandom::rand(0, map_size - index) <= sample_count) {
         continue;
       }
       // retrive info and reset info atomicly
