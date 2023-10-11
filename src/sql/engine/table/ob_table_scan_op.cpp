@@ -1347,23 +1347,35 @@ int ObTableScanOp::inner_open()
 int ObTableScanOp::inner_close()
 {
   int ret = OB_SUCCESS;
-  uint64_t table_id = MY_SPEC.get_ref_table_id();
-  ObSQLSessionInfo* my_session = GET_MY_SESSION(ctx_);
-  if (OB_ISNULL(my_session)) {
-    ret = OB_ERR_UNEXPECTED;
-    LOG_WARN("invalid session", K(ret));
-  } else {
-    uint64_t tenant_id = my_session->get_effective_tenant_id();
-    uint64_t database_id = my_session->get_database_id();
-    MTL_SWITCH(tenant_id) {
-      oceanbase::share::ObIndexUsageInfoMgr* mgr = MTL(oceanbase::share::ObIndexUsageInfoMgr*);
-      if (OB_ISNULL(mgr)) {
-        LOG_WARN("ob index usage is null", K(ret));
-      } else if (OB_FAIL(mgr->update(database_id, tenant_id, table_id))) {
-        LOG_WARN("fail to update index usage info", K(ret));
-      }
+
+  if (MY_SPEC.should_scan_index()) {
+    uint64_t tenant_id = GET_MY_SESSION(ctx_)->get_effective_tenant_id();
+    uint64_t table_id = MY_CTDEF.scan_ctdef_.ref_table_id_;
+    uint64_t index_id = MY_SPEC.get_ref_table_id();
+    oceanbase::share::ObIndexUsageInfoMgr* mgr = MTL(oceanbase::share::ObIndexUsageInfoMgr*);
+    if (OB_ISNULL(mgr)) {
+      LOG_WARN("ob index usage is null", K(ret));
+    } else if (OB_FAIL(mgr->update(tenant_id, table_id, index_id))) {
+      LOG_WARN("fail to update index usage info", K(ret));
     }
   }
+  // uint64_t table_id = MY_SPEC.get_ref_table_id();
+  // ObSQLSessionInfo* my_session = GET_MY_SESSION(ctx_);
+  // if (OB_ISNULL(my_session)) {
+  //   ret = OB_ERR_UNEXPECTED;
+  //   LOG_WARN("invalid session", K(ret));
+  // } else {
+  //   uint64_t tenant_id = my_session->get_effective_tenant_id();
+    
+  //   MTL_SWITCH(tenant_id) {
+  //     oceanbase::share::ObIndexUsageInfoMgr* mgr = MTL(oceanbase::share::ObIndexUsageInfoMgr*);
+  //     if (OB_ISNULL(mgr)) {
+  //       LOG_WARN("ob index usage is null", K(ret));
+  //     } else if (OB_FAIL(mgr->update(tenant_id, table_id))) {
+  //       LOG_WARN("fail to update index usage info", K(ret));
+  //     }
+  //   }
+  // }
   
   if (das_ref_.has_task()) {
     int tmp_ret = fill_storage_feedback_info();

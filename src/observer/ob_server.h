@@ -76,7 +76,6 @@
 
 #include "share/table/ob_table_rpc_proxy.h"
 #include "share/wr/ob_wr_service.h"
-#include "share/index_usage/ob_index_usage_report_task.h"
 
 #include "sql/engine/table/ob_external_table_access_service.h"
 #include "share/external_table/ob_external_table_file_rpc_proxy.h"
@@ -448,7 +447,6 @@ private:
   ObDiskUsageReportTask disk_usage_report_task_;
 
   logservice::ObServerLogBlockMgr log_block_mgr_;
-  ObIndexUsageReportTask index_usage_report_task_;
 #ifdef OB_BUILD_ARBITRATION
   arbserver::ObArbGarbageCollectService arb_gcs_;
   arbserver::ObArbServerTimer arb_timer_;
