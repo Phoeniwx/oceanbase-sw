@@ -171,6 +171,7 @@ int ObIndexUsageInfoMgr::sample(const UpdateFunc& update_func, const DelFunc& de
         // process a batch
         if (OB_FAIL(update_func(pair_list))) {
           LOG_WARN("flush index usage batch failed", K(ret));
+          break;
         }
         pair_list.reset();
       }
