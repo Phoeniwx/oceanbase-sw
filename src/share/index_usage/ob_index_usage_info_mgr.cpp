@@ -158,6 +158,9 @@ int ObIndexUsageInfoMgr::sample(const UpdateFunc& update_func, const DelFunc& de
     if (STRCASECMP(iut_mode, "SAMPLE") == 0) {
       sample_count = sample_count * (SAMPLE_RATIO * 1.0 / 100);
     }
+    if (sample_count < SAMPLE_BATCH_SIZE) {
+      sample_count = SAMPLE_BATCH_SIZE;
+    }
     ObIndexUsageOp reset_op(ObIndexUsageOpMode::RESET);
 
     ObIndexUsagePairList pair_list(allocator_);
@@ -180,8 +183,8 @@ int ObIndexUsageInfoMgr::sample(const UpdateFunc& update_func, const DelFunc& de
         } 
         continue;
       }
-      if (sample_count < map_size &&
-          common::ObRandom::rand(0, map_size - index) <= sample_count) {
+      if (sample_count < map_size - index &&
+          common::ObRandom::rand(0, map_size - index) > sample_count) {
         continue;
       }
       // retrive info and reset info atomicly

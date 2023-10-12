@@ -129,7 +129,7 @@ class ObIndexUsageInfoMgr final {
   static const int64_t DEFAULT_MAX_HASH_BUCKET_CNT = 3000;
   static const int32_t SAMPLE_BATCH_SIZE = 100;
   static const int64_t INDEX_USAGE_REPORT_INTERVAL =
-    1 * 60 * 1000L * 1000L; // 15min
+    15 * 60 * 1000L * 1000L; // 15min
 
 public:
   typedef common::ObFunction<int(ObIndexUsagePairList&)> UpdateFunc;
