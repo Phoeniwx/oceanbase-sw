@@ -122,9 +122,6 @@ int ObIndexUsageInfoMgr::update(const uint64_t tenant_id,
   int ret = OB_SUCCESS;
   if (!GCONF._iut_enable || !is_inited_) {
     // do nothing
-  } else if (GCONF._iut_max_entries <= index_usage_map_.size()) {
-    ret = OB_ERROR;
-    LOG_WARN("index usage hashmap reach max entries", K(ret));
   } else {
     ObIndexUsageKey key(tenant_id, table_id, index_table_id);
     ObIndexUsageOp update_op(ObIndexUsageOpMode::UPDATE);
@@ -133,7 +130,10 @@ int ObIndexUsageInfoMgr::update(const uint64_t tenant_id,
     } else if (OB_LIKELY(ret == OB_HASH_NOT_EXIST)) {
       // key not exist, insert new one
       ObIndexUsageInfo new_info(index_table_id);
-      if (OB_FAIL(index_usage_map_.set_or_update(key, new_info, update_op))) {
+      if (GCONF._iut_max_entries <= index_usage_map_.size()) {
+        ret = OB_ERROR;
+        LOG_WARN("index usage hashmap reach max entries", K(ret));
+      } else if (OB_FAIL(index_usage_map_.set_or_update(key, new_info, update_op))) {
         LOG_WARN("failed to set or update index-usage map", K(ret));
       }
     } else {
