@@ -101,7 +101,7 @@ public:
   static const int64_t INDEX_USAGE_REPORT_INTERVAL = 15 * 60 * 1000L * 1000L; // 15min
 public:
   ObIndexUsageReportTask();
-  virtual ~ObIndexUsageReportTask(){};
+  virtual ~ObIndexUsageReportTask() {};
 
 private:
   virtual void runTimerTask();

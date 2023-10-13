@@ -8,3 +8,5 @@ BreakBeforeBraces: Custom
 BraceWrapping:
   AfterNamespace:  true
   AfterFunction:   true
+Cpp11BracedListStyle: true
+SpaceBeforeCpp11BracedList: true
