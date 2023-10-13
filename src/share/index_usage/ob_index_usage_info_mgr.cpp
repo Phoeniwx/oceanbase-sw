@@ -24,7 +24,7 @@ using namespace oceanbase::common;
 namespace oceanbase {
 namespace share {
 
-const char *OB_INDEX_USAGE_MANAGER = "hIndexUsageMgr";
+const char *OB_INDEX_USAGE_MANAGER = "IndexUsageMgr";
 
 void ObIndexUsageOp::operator()(
     common::hash::HashMapPair<ObIndexUsageKey, ObIndexUsageInfo> &data) {
