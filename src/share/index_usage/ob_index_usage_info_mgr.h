@@ -1,25 +1,19 @@
 
-#ifndef SRC_SHARE_INDEX_USAGE_OB_INDEX_USAGE_INFO_MGR_H_
-#define SRC_SHARE_INDEX_USAGE_OB_INDEX_USAGE_INFO_MGR_H_
+#ifndef OCEANBASE_SHARE_OB_INDEX_USAGE_INFO_MGR_H_
+#define OCEANBASE_SHARE_OB_INDEX_USAGE_INFO_MGR_H_
 
 #include "lib/allocator/ob_fifo_allocator.h"
-#include "lib/container/ob_array.h"
-#include "lib/hash/ob_hashmap.h"
-#include "lib/hash/ob_hashutils.h"
-#include "lib/list/ob_list.h"
-#include "lib/lock/ob_spin_rwlock.h"
-#include "lib/lock/ob_tc_rwlock.h"
-#include "lib/ob_define.h"
-#include "lib/ob_errno.h"
 #include "lib/function/ob_function.h"
-#include "lib/utility/ob_macro_utils.h"
-#include "lib/time/ob_time_utility.h"
+#include "lib/hash/ob_hashmap.h"
+#include "lib/list/ob_list.h"
 #include "lib/mysqlclient/ob_mysql_proxy.h"
-#include "share/ob_cascad_member.h"
+#include "lib/task/ob_timer.h"
+#include "lib/time/ob_time_utility.h"
 
-
-namespace oceanbase {
-namespace share {
+namespace oceanbase
+{
+namespace share
+{
 
 class ObIndexUsageInfoMgr;
 
@@ -29,31 +23,33 @@ enum ObIndexUsageOpMode {
 };
 
 struct ObIndexUsageKey {
-  ObIndexUsageKey(uint64_t tenant_id, uint64_t table_id,
-                  uint64_t index_table_id)
-      : tenant_id(tenant_id), table_id(table_id),
-        index_table_id(index_table_id) {}
+  ObIndexUsageKey(uint64_t tenant_id, uint64_t table_id, uint64_t index_table_id)
+      : tenant_id(tenant_id), table_id(table_id), index_table_id(index_table_id)
+  {
+  }
 
   ObIndexUsageKey() {}
   ~ObIndexUsageKey() {}
 
-  uint64_t hash() const {
+  uint64_t hash() const
+  {
     uint64_t hash_value = 0;
     hash_value = common::murmurhash(&tenant_id, sizeof(uint64_t), hash_value);
     hash_value = common::murmurhash(&table_id, sizeof(uint64_t), hash_value);
     hash_value = common::murmurhash(&index_table_id, sizeof(uint64_t), hash_value);
     return hash_value;
   }
-  inline int hash(uint64_t &hash_val) const {
+  inline int hash(uint64_t &hash_val) const
+  {
     hash_val = hash();
     return OB_SUCCESS;
   }
-  bool operator==(const ObIndexUsageKey &other) const {
-    return tenant_id == other.tenant_id && table_id == other.table_id &&
-           index_table_id == other.index_table_id;
+  bool operator==(const ObIndexUsageKey &other) const
+  {
+    return tenant_id == other.tenant_id && table_id == other.table_id && index_table_id == other.index_table_id;
   }
 
-  int64_t tenant_id; 
+  int64_t tenant_id;
   int64_t table_id; // main table id
   int64_t index_table_id;
 };
@@ -61,12 +57,15 @@ struct ObIndexUsageKey {
 /* strcut stores increment stasitic data*/
 struct ObIndexUsageInfo {
   ObIndexUsageInfo(uint64_t index_table_id)
-      : index_table_id(index_table_id), ref_count(0), access_count(0), exec_count(0),
-        rows_returned(0), start_used_time(ObTimeUtility::current_time()), last_used_time(start_used_time) {}
+      : index_table_id(index_table_id), ref_count(0), access_count(0), exec_count(0), rows_returned(0),
+        start_used_time(ObTimeUtility::current_time()), last_used_time(start_used_time)
+  {
+  }
   ObIndexUsageInfo() {}
   ~ObIndexUsageInfo() {}
 
-  void reset() {
+  void reset()
+  {
     ref_count = 0;
     access_count = 0;
     exec_count = 0;
@@ -89,32 +88,29 @@ class ObIndexUsageReportTask : public common::ObTimerTask {
   friend ObIndexUsageInfoMgr;
 
 public:
-  static const int64_t INDEX_USAGE_REPORT_INTERVAL =
-      15 * 60 * 1000L * 1000L; // 15min
+  static const int64_t INDEX_USAGE_REPORT_INTERVAL = 15 * 60 * 1000L * 1000L; // 15min
 public:
   ObIndexUsageReportTask();
   virtual ~ObIndexUsageReportTask(){};
 
 private:
   virtual void runTimerTask();
-  int storage_index_usage(const uint64_t tenant_id);
-  int storage_index_usage(const ObIndexUsagePairList& info_list);
-  int del_index_usage(const ObIndexUsageKey& key);
+  int storage_index_usage(const ObIndexUsagePairList &info_list);
+  int del_index_usage(const ObIndexUsageKey &key);
 
 private:
   bool is_inited_;
-  ObIndexUsageInfoMgr* mgr_;
-  common::ObMySQLProxy* sql_proxy_; // 写入内部表需要 sql proxy
+  ObIndexUsageInfoMgr *mgr_;
+  common::ObMySQLProxy *sql_proxy_; // 写入内部表需要 sql proxy
 };
 
 // callback for update or reset map value
 class ObIndexUsageOp final {
 public:
-  explicit ObIndexUsageOp(ObIndexUsageOpMode mode)
-      : op_mode_(mode), old_info_() {}
+  explicit ObIndexUsageOp(ObIndexUsageOpMode mode) : op_mode_(mode), old_info_() {}
   virtual ~ObIndexUsageOp() {}
   void operator()(common::hash::HashMapPair<ObIndexUsageKey, ObIndexUsageInfo> &data);
-  const ObIndexUsageInfo& retrive_info() {return old_info_;}
+  const ObIndexUsageInfo &retrive_info() { return old_info_; }
 
 private:
   ObIndexUsageOpMode op_mode_;
@@ -124,32 +120,31 @@ private:
 
 class ObIndexUsageInfoMgr final {
 
-  typedef common::hash::ObHashMap<ObIndexUsageKey, ObIndexUsageInfo, common::hash::ReadWriteDefendMode> ObIndexUsageHashMap;
+  typedef common::hash::ObHashMap<ObIndexUsageKey, ObIndexUsageInfo, common::hash::ReadWriteDefendMode>
+      ObIndexUsageHashMap;
   static const int64_t SAMPLE_RATIO = 50; // 采样模式下的采样比例，50 表示 50%
   static const int64_t DEFAULT_MAX_HASH_BUCKET_CNT = 3000;
   static const int32_t SAMPLE_BATCH_SIZE = 100;
-  static const int64_t INDEX_USAGE_REPORT_INTERVAL =
-    15 * 60 * 1000L * 1000L; // 15min
+  static const int64_t INDEX_USAGE_REPORT_INTERVAL = 15 * 60 * 1000L * 1000L; // 15min
 
 public:
-  typedef common::ObFunction<int(ObIndexUsagePairList&)> UpdateFunc;
-  typedef common::ObFunction<int(ObIndexUsageKey&)> DelFunc;
+  typedef common::ObFunction<int(ObIndexUsagePairList &)> UpdateFunc;
+  typedef common::ObFunction<int(ObIndexUsageKey &)> DelFunc;
 
   static int mtl_init(ObIndexUsageInfoMgr *&index_usage_mgr);
   ObIndexUsageInfoMgr();
   ~ObIndexUsageInfoMgr();
 
 public:
-  int start();    // start timer task
+  int start(); // start timer task
   void stop();
   void wait();
   int init();     // 申请map内存，在创建索引之后调用
   void destroy(); // 释放map，在observer析构时调用
-  int update(const uint64_t tenant_id, const uint64_t table_id, 
-             const uint64_t index_table_id);
+  int update(const uint64_t tenant_id, const uint64_t table_id, const uint64_t index_table_id);
   int del(ObIndexUsageKey &key);
-  int sample(const UpdateFunc& update_func, const DelFunc& del_func);                // 采样哈希表
-  void release_node(ObIndexUsageInfo *info); // 用于task释放内存
+  int sample(const UpdateFunc &update_func, const DelFunc &del_func); // 采样哈希表
+  void release_node(ObIndexUsageInfo *info);                          // 用于task释放内存
 
 private:
   bool is_inited_;
