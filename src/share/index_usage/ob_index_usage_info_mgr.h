@@ -157,7 +157,13 @@ public:
   void release_node(ObIndexUsageInfo *info);                          // 用于task释放内存
 
 private:
+  bool is_enabled();
+  bool is_sample_mode();
+  int64_t get_iut_entries();
+
+private:
   bool is_inited_;
+  uint64_t tenant_id_;
   ObIndexUsageHashMap index_usage_map_;
   ObIndexUsageReportTask report_task_;
   common::ObFIFOAllocator allocator_;

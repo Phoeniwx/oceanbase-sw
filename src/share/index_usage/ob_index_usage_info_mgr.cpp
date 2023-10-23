@@ -38,7 +38,7 @@ void ObIndexUsageOp::operator()(common::hash::HashMapPair<ObIndexUsageKey, ObInd
   }
 }
 
-ObIndexUsageInfoMgr::ObIndexUsageInfoMgr() : is_inited_(false), index_usage_map_(), report_task_(), allocator_(MTL_ID())
+ObIndexUsageInfoMgr::ObIndexUsageInfoMgr() : is_inited_(false), tenant_id_(MTL_ID()), index_usage_map_(), report_task_(), allocator_(MTL_ID())
 {
 }
 
@@ -121,7 +121,7 @@ void ObIndexUsageInfoMgr::wait()
 int ObIndexUsageInfoMgr::update(const uint64_t tenant_id, const uint64_t table_id, const uint64_t index_table_id)
 {
   int ret = OB_SUCCESS;
-  if (!GCONF._iut_enable || !is_inited_) {
+  if (!is_inited_ || !is_enabled()) {
     // do nothing
   } else {
     ObIndexUsageKey key(tenant_id, table_id, index_table_id);
@@ -131,7 +131,7 @@ int ObIndexUsageInfoMgr::update(const uint64_t tenant_id, const uint64_t table_i
     } else if (OB_LIKELY(ret == OB_HASH_NOT_EXIST)) {
       // key not exist, insert new one
       ObIndexUsageInfo new_info(index_table_id);
-      if (GCONF._iut_max_entries <= index_usage_map_.size()) {
+      if (get_iut_entries() <= index_usage_map_.size()) {
         ret = OB_ERROR;
         LOG_WARN("index usage hashmap reach max entries", K(ret));
       } else if (OB_FAIL(index_usage_map_.set_or_update(key, new_info, update_op))) {
@@ -152,27 +152,25 @@ int ObIndexUsageInfoMgr::sample(const UpdateFunc &update_func, const DelFunc &de
 {
   int ret = OB_SUCCESS;
 
-  if (is_inited_) {
+  if (is_inited_ && is_enabled()) {
     schema::ObMultiVersionSchemaService *schema_service = MTL(ObTenantSchemaService *)->get_schema_service();
-    const char *iut_mode = GCONF._iut_stat_collection_type;
     int64_t map_size = index_usage_map_.size();
     int64_t sample_count = map_size;
-    if (STRCASECMP(iut_mode, "SAMPLE") == 0) {
+    if (is_sample_mode()) {
       sample_count = sample_count * (SAMPLE_RATIO * 1.0 / 100);
     }
     if (sample_count < SAMPLE_BATCH_SIZE) {
       sample_count = SAMPLE_BATCH_SIZE;
     }
     ObIndexUsageOp reset_op(ObIndexUsageOpMode::RESET);
-
     ObIndexUsagePairList pair_list(allocator_);
     int64_t index = 0;
-    for (ObIndexUsageHashMap::iterator it = index_usage_map_.begin(); it != index_usage_map_.end(); it++, index++) {
+
+    for (ObIndexUsageHashMap::iterator it = index_usage_map_.begin(); OB_SUCC(ret) && it != index_usage_map_.end(); it++, index++) {
       if (pair_list.size() >= SAMPLE_BATCH_SIZE) {
         // process a batch
         if (OB_FAIL(update_func(pair_list))) {
           LOG_WARN("flush index usage batch failed", K(ret));
-          break;
         }
         pair_list.reset();
       }
@@ -181,7 +179,6 @@ int ObIndexUsageInfoMgr::sample(const UpdateFunc &update_func, const DelFunc &de
         // delete index not exist
         if (OB_FAIL(del_func(it->first)) || OB_FAIL(del(it->first))) {
           LOG_WARN("del index usage failed", K(ret), "index_id", it->first.index_table_id);
-          break;
         }
         continue;
       }
@@ -214,6 +211,35 @@ int ObIndexUsageInfoMgr::del(ObIndexUsageKey &key)
     LOG_WARN("failed to erase index usage key", K(ret));
   }
   return ret;
+}
+
+bool ObIndexUsageInfoMgr::is_enabled() {
+  omt::ObTenantConfigGuard tenant_config(TENANT_CONF(tenant_id_));
+  return tenant_config.is_valid() && tenant_config->_iut_enable;
+}
+
+bool ObIndexUsageInfoMgr::is_sample_mode() {
+  bool mode = true;
+  omt::ObTenantConfigGuard tenant_config(TENANT_CONF(tenant_id_));
+  if (OB_UNLIKELY(!tenant_config.is_valid())) {
+    int ret = OB_ERR_UNEXPECTED;
+    LOG_WARN("failed to get tenant config, use default", K(ret));
+  } else {
+    mode = tenant_config->_iut_stat_collection_type.get_value_string().case_compare("SAMPLE") == 0;
+  }
+  return mode;
+}
+
+int64_t ObIndexUsageInfoMgr::get_iut_entries() {
+  int64_t entries = 30000;
+  omt::ObTenantConfigGuard tenant_config(TENANT_CONF(tenant_id_));
+  if (OB_UNLIKELY(!tenant_config.is_valid())) {
+    int ret = OB_ERR_UNEXPECTED;
+    LOG_WARN("failed to get tenant config, use default", K(ret));
+  } else {
+    entries = tenant_config->_iut_max_entries.get();
+  }
+  return entries;
 }
 
 } // namespace share
