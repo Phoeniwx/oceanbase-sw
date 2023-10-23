@@ -28,9 +28,9 @@ const char *OB_INDEX_USAGE_MANAGER = "IndexUsageMgr";
 void ObIndexUsageOp::operator()(common::hash::HashMapPair<ObIndexUsageKey, ObIndexUsageInfo> &data)
 {
   if (op_mode_ == ObIndexUsageOpMode::UPDATE) {
-    data.second.ref_count++;
-    data.second.exec_count++;
-    data.second.last_used_time = ObTimeUtility::current_time();
+    data.second.ref_count_++;
+    data.second.exec_count_++;
+    data.second.last_used_time_ = ObTimeUtility::current_time();
 
   } else if (op_mode_ == ObIndexUsageOpMode::RESET) {
     old_info_ = data.second;
@@ -176,10 +176,10 @@ int ObIndexUsageInfoMgr::sample(const UpdateFunc &update_func, const DelFunc &de
         pair_list.reset();
       }
       bool exist = true;
-      if (OB_SUCC(check_table_exists(it->first.tenant_id, it->first.index_table_id, exist)) && !exist) {
+      if (OB_SUCC(check_table_exists(it->first.tenant_id_, it->first.index_table_id_, exist)) && !exist) {
         // delete index not exist
         if (OB_FAIL(del_func(it->first)) || OB_FAIL(del(it->first))) {
-          LOG_WARN("del index usage failed", K(ret), "index_id", it->first.index_table_id);
+          LOG_WARN("del index usage failed", K(ret), "index_id", it->first.index_table_id_);
         }
         continue;
       }

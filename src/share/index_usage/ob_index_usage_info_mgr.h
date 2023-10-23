@@ -32,9 +32,9 @@ enum ObIndexUsageOpMode {
   RESET   // for reset hashmap
 };
 
-struct ObIndexUsageKey {
+struct ObIndexUsageKey final {
   ObIndexUsageKey(uint64_t tenant_id, uint64_t table_id, uint64_t index_table_id)
-      : tenant_id(tenant_id), table_id(table_id), index_table_id(index_table_id)
+      : tenant_id_(tenant_id), table_id_(table_id), index_table_id_(index_table_id)
   {
   }
 
@@ -44,9 +44,9 @@ struct ObIndexUsageKey {
   uint64_t hash() const
   {
     uint64_t hash_value = 0;
-    hash_value = common::murmurhash(&tenant_id, sizeof(uint64_t), hash_value);
-    hash_value = common::murmurhash(&table_id, sizeof(uint64_t), hash_value);
-    hash_value = common::murmurhash(&index_table_id, sizeof(uint64_t), hash_value);
+    hash_value = common::murmurhash(&tenant_id_, sizeof(uint64_t), hash_value);
+    hash_value = common::murmurhash(&table_id_, sizeof(uint64_t), hash_value);
+    hash_value = common::murmurhash(&index_table_id_, sizeof(uint64_t), hash_value);
     return hash_value;
   }
   inline int hash(uint64_t &hash_val) const
@@ -56,19 +56,20 @@ struct ObIndexUsageKey {
   }
   bool operator==(const ObIndexUsageKey &other) const
   {
-    return tenant_id == other.tenant_id && table_id == other.table_id && index_table_id == other.index_table_id;
+    return tenant_id_ == other.tenant_id_ && table_id_ == other.table_id_ && index_table_id_ == other.index_table_id_;
   }
+  TO_STRING_KV(K_(tenant_id), K_(table_id), K_(index_table_id));
 
-  int64_t tenant_id;
-  int64_t table_id; // main table id
-  int64_t index_table_id;
+  uint64_t tenant_id_;
+  uint64_t table_id_; // main table id
+  uint64_t index_table_id_;
 };
 
 /* strcut stores increment stasitic data*/
-struct ObIndexUsageInfo {
+struct ObIndexUsageInfo final {
   ObIndexUsageInfo(uint64_t index_table_id)
-      : index_table_id(index_table_id), ref_count(0), access_count(0), exec_count(0), rows_returned(0),
-        start_used_time(ObTimeUtility::current_time()), last_used_time(start_used_time)
+      : index_table_id_(index_table_id), ref_count_(0), access_count_(0), exec_count_(0), rows_returned_(0),
+        start_used_time_(ObTimeUtility::current_time()), last_used_time_(start_used_time_)
   {
   }
   ObIndexUsageInfo() {}
@@ -76,19 +77,27 @@ struct ObIndexUsageInfo {
 
   void reset()
   {
-    ref_count = 0;
-    access_count = 0;
-    exec_count = 0;
-    rows_returned = 0;
+    ref_count_ = 0;
+    access_count_ = 0;
+    exec_count_ = 0;
+    rows_returned_ = 0;
   }
+  TO_STRING_KV(
+    K_(index_table_id), 
+    K_(ref_count),
+    K_(access_count), 
+    K_(exec_count), 
+    K_(rows_returned),
+    K_(start_used_time), 
+    K_(last_used_time));
 
-  uint64_t index_table_id;
-  int64_t ref_count;
-  int64_t access_count;
-  int64_t exec_count;
-  int64_t rows_returned;
-  int64_t start_used_time;
-  int64_t last_used_time;
+  uint64_t index_table_id_;
+  int64_t ref_count_;
+  int64_t access_count_;
+  int64_t exec_count_;
+  int64_t rows_returned_;
+  int64_t start_used_time_;
+  int64_t last_used_time_;
 };
 
 typedef common::hash::HashMapPair<ObIndexUsageKey, ObIndexUsageInfo> ObIndexUsagePair;
@@ -129,7 +138,6 @@ private:
 };
 
 class ObIndexUsageInfoMgr final {
-
   typedef common::hash::ObHashMap<ObIndexUsageKey, ObIndexUsageInfo, common::hash::ReadWriteDefendMode>
       ObIndexUsageHashMap;
   static const int64_t SAMPLE_RATIO = 50; // 采样模式下的采样比例，50 表示 50%

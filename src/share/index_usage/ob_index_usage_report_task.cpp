@@ -57,9 +57,9 @@ int ObIndexUsageReportTask::storage_index_usage(const ObIndexUsagePairList &info
     insert_update_sql.append_fmt(INSERT_INDEX_USAGE_HEAD_SQL, OB_ALL_INDEX_USAGE_INFO_TNAME);
     for (ObIndexUsagePairList::const_iterator it = info_list.begin(); it != info_list.end(); it++) {
       insert_update_sql.append_fmt("(%lu,%lu,%lu,'','',%lu,%lu,%lu,usec_to_time(%lu),usec_to_time(%lu),now(6)),",
-                                   it->first.tenant_id, it->first.table_id, it->first.index_table_id,
-                                   it->second.access_count, it->second.rows_returned, it->second.exec_count,
-                                   it->second.start_used_time, it->second.last_used_time);
+                                   it->first.tenant_id_, it->first.table_id_, it->first.index_table_id_,
+                                   it->second.access_count_, it->second.rows_returned_, it->second.exec_count_,
+                                   it->second.start_used_time_, it->second.last_used_time_);
     }
     insert_update_sql.set_length(insert_update_sql.length() - 1);
     insert_update_sql.append(INSERT_INDEX_USAGE_ON_DUPLICATE_END_SQL);
@@ -80,9 +80,9 @@ int ObIndexUsageReportTask::del_index_usage(const ObIndexUsageKey &key)
 
   if (OB_FAIL(ret)) {
     // do nothing
-  } else if (OB_FAIL(dml.add_pk_column("tenant_id", key.tenant_id)) ||
-             OB_FAIL(dml.add_pk_column("table_id", key.table_id)) ||
-             OB_FAIL(dml.add_pk_column("object_id", key.index_table_id))) {
+  } else if (OB_FAIL(dml.add_pk_column("tenant_id", key.tenant_id_)) ||
+             OB_FAIL(dml.add_pk_column("table_id", key.table_id_)) ||
+             OB_FAIL(dml.add_pk_column("object_id", key.index_table_id_))) {
     LOG_WARN("dml add column failed", K(ret));
   } else if (OB_FAIL(exec.exec_delete(OB_ALL_INDEX_USAGE_INFO_TNAME, dml, affected_rows))) {
     LOG_WARN("del sql exec error", K(ret));
