@@ -126,14 +126,16 @@ int ObIndexUsageInfoMgr::update(const uint64_t tenant_id, const uint64_t table_i
   } else {
     ObIndexUsageKey key(tenant_id, table_id, index_table_id);
     ObIndexUsageOp update_op(ObIndexUsageOpMode::UPDATE);
-    if (OB_SUCC(index_usage_map_.atomic_refactored(key, update_op))) {
+    if (tenant_id == OB_INVALID_TENANT_ID || table_id == OB_INVALID_ID || index_table_id == OB_INVALID_ID) {
+      ret = OB_ERR_UNEXPECTED;
+      LOG_WARN("usage of invalid ids", K(ret));
+    } else if (OB_SUCC(index_usage_map_.atomic_refactored(key, update_op))) {
       // key exists, update success
     } else if (OB_LIKELY(ret == OB_HASH_NOT_EXIST)) {
       // key not exist, insert new one
       ObIndexUsageInfo new_info(index_table_id);
       if (get_iut_entries() <= index_usage_map_.size()) {
-        ret = OB_ERROR;
-        LOG_WARN("index usage hashmap reach max entries", K(ret));
+        LOG_WARN("index usage hashmap reaches max entries", K(ret));
       } else if (OB_FAIL(index_usage_map_.set_or_update(key, new_info, update_op))) {
         LOG_WARN("failed to set or update index-usage map", K(ret));
       }
@@ -153,7 +155,6 @@ int ObIndexUsageInfoMgr::sample(const UpdateFunc &update_func, const DelFunc &de
   int ret = OB_SUCCESS;
 
   if (is_inited_ && is_enabled()) {
-    schema::ObMultiVersionSchemaService *schema_service = MTL(ObTenantSchemaService *)->get_schema_service();
     int64_t map_size = index_usage_map_.size();
     int64_t sample_count = map_size;
     if (is_sample_mode()) {
@@ -175,7 +176,7 @@ int ObIndexUsageInfoMgr::sample(const UpdateFunc &update_func, const DelFunc &de
         pair_list.reset();
       }
       bool exist = true;
-      if (OB_SUCC(schema_service->check_table_exist(it->first.tenant_id, it->first.table_id, 0, exist)) && !exist) {
+      if (OB_SUCC(check_table_exists(it->first.tenant_id, it->first.index_table_id, exist)) && !exist) {
         // delete index not exist
         if (OB_FAIL(del_func(it->first)) || OB_FAIL(del(it->first))) {
           LOG_WARN("del index usage failed", K(ret), "index_id", it->first.index_table_id);
@@ -209,6 +210,17 @@ int ObIndexUsageInfoMgr::del(ObIndexUsageKey &key)
   int ret = OB_SUCCESS;
   if (is_inited_ && OB_FAIL(index_usage_map_.erase_refactored(key))) {
     LOG_WARN("failed to erase index usage key", K(ret));
+  }
+  return ret;
+}
+
+int ObIndexUsageInfoMgr::check_table_exists(uint64_t tenant_id, uint64_t table_id, bool& exist) {
+  int ret = OB_SUCCESS;
+  ObSchemaGetterGuard schema_guard;
+  if (OB_FAIL(GCTX.schema_service_->get_tenant_schema_guard(tenant_id, schema_guard))) {
+    LOG_WARN("failed to get schema_guard", K(ret));
+  } else if (OB_FAIL(schema_guard.check_table_exist(tenant_id, table_id, exist))) {
+    LOG_WARN("failed to check table exist", K(ret));
   }
   return ret;
 }

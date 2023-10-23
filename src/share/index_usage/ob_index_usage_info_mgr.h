@@ -160,6 +160,7 @@ private:
   bool is_enabled();
   bool is_sample_mode();
   int64_t get_iut_entries();
+  int check_table_exists(uint64_t tenant_id, uint64_t table_id, bool& exist);
 
 private:
   bool is_inited_;
