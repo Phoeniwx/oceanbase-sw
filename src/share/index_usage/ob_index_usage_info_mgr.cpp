@@ -167,37 +167,30 @@ int ObIndexUsageInfoMgr::sample(const UpdateFunc &update_func, const DelFunc &de
     ObIndexUsagePairList pair_list(allocator_);
     int64_t index = 0;
 
-    for (ObIndexUsageHashMap::iterator it = index_usage_map_.begin(); OB_SUCC(ret) && it != index_usage_map_.end(); it++, index++) {
-      if (pair_list.size() >= SAMPLE_BATCH_SIZE) {
-        // process a batch
-        if (OB_FAIL(update_func(pair_list))) {
-          LOG_WARN("flush index usage batch failed", K(ret));
-        }
-        pair_list.reset();
-      }
+    for (ObIndexUsageHashMap::iterator it = index_usage_map_.begin(); OB_SUCC(ret) && index < map_size; it++, index++) {
       bool exist = true;
       if (OB_SUCC(check_table_exists(it->first.tenant_id_, it->first.index_table_id_, exist)) && !exist) {
         // delete index not exist
         if (OB_FAIL(del_func(it->first)) || OB_FAIL(del(it->first))) {
           LOG_WARN("del index usage failed", K(ret), "index_id", it->first.index_table_id_);
         }
-        continue;
+      } else if (sample_count < map_size - index && common::ObRandom::rand(0, map_size - index) > sample_count) {
+        // sample skip
+      } else {
+        // retrive info and reset info atomicly
+        index_usage_map_.atomic_refactored(it->first, reset_op);
+        ObIndexUsagePair pair;
+        pair.init(it->first, reset_op.retrive_info());
+        pair_list.push_back(pair);
+        sample_count--;
       }
-      if (sample_count < map_size - index && common::ObRandom::rand(0, map_size - index) > sample_count) {
-        continue;
-      }
-      // retrive info and reset info atomicly
-      index_usage_map_.atomic_refactored(it->first, reset_op);
-      ObIndexUsagePair pair;
-      pair.init(it->first, reset_op.retrive_info());
-      pair_list.push_back(pair);
-      sample_count--;
-    }
-    // process last batch
-    if (OB_FAIL(ret)) {
-      // do nothing
-    } else if (OB_FAIL(update_func(pair_list))) {
-      LOG_WARN("flush index usage batch failed", K(ret));
+      // clear batch at last
+      if (pair_list.size() >= SAMPLE_BATCH_SIZE || index >= map_size - 1) {
+        if (OB_FAIL(update_func(pair_list))) {
+          LOG_WARN("flush index usage batch failed", K(ret));
+        }
+        pair_list.reset();
+      }  
     }
     pair_list.destroy();
   }

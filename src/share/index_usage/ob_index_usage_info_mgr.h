@@ -126,7 +126,7 @@ private:
 // callback for update or reset map value
 class ObIndexUsageOp final {
 public:
-  explicit ObIndexUsageOp(ObIndexUsageOpMode mode) : op_mode_(mode), old_info_() {}
+  explicit ObIndexUsageOp (ObIndexUsageOpMode mode) : op_mode_(mode), old_info_() {}
   virtual ~ObIndexUsageOp() {}
   void operator() (common::hash::HashMapPair<ObIndexUsageKey, ObIndexUsageInfo> &data);
   const ObIndexUsageInfo &retrive_info() { return old_info_; }
