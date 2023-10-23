@@ -128,7 +128,7 @@ class ObIndexUsageOp final {
 public:
   explicit ObIndexUsageOp(ObIndexUsageOpMode mode) : op_mode_(mode), old_info_() {}
   virtual ~ObIndexUsageOp() {}
-  void operator()(common::hash::HashMapPair<ObIndexUsageKey, ObIndexUsageInfo> &data);
+  void operator() (common::hash::HashMapPair<ObIndexUsageKey, ObIndexUsageInfo> &data);
   const ObIndexUsageInfo &retrive_info() { return old_info_; }
 
 private:

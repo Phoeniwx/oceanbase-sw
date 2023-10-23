@@ -39,20 +39,27 @@ ObIndexUsageReportTask::ObIndexUsageReportTask() : is_inited_(false), sql_proxy_
 void ObIndexUsageReportTask::runTimerTask()
 {
   int ret = OB_SUCCESS;
-
-  ObIndexUsageInfoMgr::UpdateFunc update_func;
-  ObIndexUsageInfoMgr::DelFunc del_func;
-  update_func.assign([this](ObIndexUsagePairList &info_list) { return this->storage_index_usage(info_list); });
-  del_func.assign([this](ObIndexUsageKey &key) { return this->del_index_usage(key); });
-  if (OB_FAIL(mgr_->sample(update_func, del_func))) {
-    LOG_WARN("index usage sample failed", K(ret), K(MTL_ID()));
+  if (OB_ISNULL(mgr_)) {
+    ret = OB_ERR_UNEXPECTED;
+    LOG_WARN("index usage mgr not init", K(ret), K(MTL_ID()));
+  } else {
+    ObIndexUsageInfoMgr::UpdateFunc update_func;
+    ObIndexUsageInfoMgr::DelFunc del_func;
+    update_func.assign([this](ObIndexUsagePairList &info_list) { return this->storage_index_usage(info_list); });
+    del_func.assign([this](ObIndexUsageKey &key) { return this->del_index_usage(key); });
+    if (OB_FAIL(mgr_->sample(update_func, del_func))) {
+      LOG_WARN("index usage sample failed", K(ret), K(MTL_ID()));
+    }
   }
 }
 
 int ObIndexUsageReportTask::storage_index_usage(const ObIndexUsagePairList &info_list)
 {
   int ret = OB_SUCCESS;
-  if (!info_list.empty()) {
+  if (OB_ISNULL(sql_proxy_)) {
+    ret = OB_ERR_UNEXPECTED;
+    LOG_WARN("sql_proxy is null", K(ret));
+  } else if (!info_list.empty()) {
     ObSqlString insert_update_sql;
     insert_update_sql.append_fmt(INSERT_INDEX_USAGE_HEAD_SQL, OB_ALL_INDEX_USAGE_INFO_TNAME);
     for (ObIndexUsagePairList::const_iterator it = info_list.begin(); it != info_list.end(); it++) {
@@ -65,7 +72,7 @@ int ObIndexUsageReportTask::storage_index_usage(const ObIndexUsagePairList &info
     insert_update_sql.append(INSERT_INDEX_USAGE_ON_DUPLICATE_END_SQL);
     int64_t affected_rows;
     if (OB_FAIL(sql_proxy_->write(insert_update_sql.ptr(), affected_rows))) {
-      LOG_WARN("insert update sql error", K(ret));
+      LOG_WARN("insert update sql error", K(ret), K(insert_update_sql));
     }
   }
   return ret;
@@ -78,14 +85,15 @@ int ObIndexUsageReportTask::del_index_usage(const ObIndexUsageKey &key)
   ObDMLExecHelper exec(*sql_proxy_, common::OB_SYS_TENANT_ID);
   int64_t affected_rows = 0;
 
-  if (OB_FAIL(ret)) {
-    // do nothing
+  if (OB_ISNULL(sql_proxy_)) {
+    ret = OB_ERR_UNEXPECTED;
+    LOG_WARN("sql_proxy is null", K(ret));
   } else if (OB_FAIL(dml.add_pk_column("tenant_id", key.tenant_id_)) ||
              OB_FAIL(dml.add_pk_column("table_id", key.table_id_)) ||
              OB_FAIL(dml.add_pk_column("object_id", key.index_table_id_))) {
     LOG_WARN("dml add column failed", K(ret));
   } else if (OB_FAIL(exec.exec_delete(OB_ALL_INDEX_USAGE_INFO_TNAME, dml, affected_rows))) {
-    LOG_WARN("del sql exec error", K(ret));
+    LOG_WARN("del sql exec error", K(ret), K(key));
   }
   return ret;
 }
