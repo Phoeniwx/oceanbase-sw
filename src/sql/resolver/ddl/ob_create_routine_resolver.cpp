@@ -641,11 +641,8 @@ int ObCreateRoutineResolver::resolve_param_list(const ParseNode *param_list, ObR
         routine_param.set_nocopy_param();
       }
 #ifdef OB_BUILD_ORACLE_PL
-      if (OB_SUCC(ret)) {
-        // 借用text_len_ , 后续修改
-        if (pl::ObPLUDTObjectManager::is_self_param(param_name)) {
-          routine_param.set_is_self_param();
-        }
+      if (OB_SUCC(ret) && 0 == param_name.case_compare("SELF")) {
+        routine_param.set_is_self_param();
       }
 #endif
       // 设置default value expr str
@@ -829,7 +826,7 @@ int ObCreateRoutineResolver::resolve_aggregate_body(
     } else { // try type name synonym
       OZ (schema_checker_->get_obj_info_recursively_with_synonym(
         tenant_id, database_id, type_name, database_id, type_name, syn_id_array, true));
-      if (database_id != session_info_->get_database_id()) {
+      if (OB_SUCC(ret) && database_id != session_info_->get_database_id()) {
         const share::schema::ObDatabaseSchema *database_schema = NULL;
         OZ (schema_checker_->get_database_schema(tenant_id, database_id, database_schema));
         CK (OB_NOT_NULL(database_schema));
@@ -840,7 +837,7 @@ int ObCreateRoutineResolver::resolve_aggregate_body(
   }
 
 
-  if (OB_SUCC(ret) && OB_ISNULL(udt_info)) {
+  if ((OB_SUCC(ret) && OB_ISNULL(udt_info)) || OB_SYNONYM_NOT_EXIST == ret) {
     ret = OB_ERR_SP_UNDECLARED_VAR;
     LOG_WARN("PLS-00201: identifier type_name must be declared",
              K(ret), K(type_name), K(db_name));

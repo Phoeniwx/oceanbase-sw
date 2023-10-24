@@ -971,7 +971,7 @@ int ObTransferHandler::commit_trans_(
     ret = OB_NOT_INIT;
     LOG_WARN("transfer handler do not init", K(ret));
   } else {
-    tmp_ret = trans.end(OB_SUCC(result));
+    tmp_ret = trans.end(OB_SUCCESS == result);
     if (OB_SUCCESS != tmp_ret) {
       LOG_WARN("end transaction failed", K(tmp_ret), K(ret));
       ret = OB_SUCCESS == ret ? tmp_ret : ret;
@@ -1597,7 +1597,8 @@ int ObTransferHandler::update_all_tablet_to_ls_(
 {
   int ret = OB_SUCCESS;
 #ifdef ERRSIM
-  SERVER_EVENT_ADD("TRANSFER", "BEFORE_TRANSFER_UPDATE_TABLET_TO_LS");
+  ObTransferEventRecorder::record_transfer_task_event(
+    task_info.task_id_, "BEFORE_TRANSFER_UPDATE_TABLET_TO_LS", task_info.src_ls_id_, task_info.dest_ls_id_);
 #endif
   DEBUG_SYNC(BEFORE_TRANSFER_UPDATE_TABLET_TO_LS);
   const int64_t start_ts = ObTimeUtil::current_time();

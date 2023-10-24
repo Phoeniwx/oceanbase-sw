@@ -757,7 +757,7 @@ private:
 
   int backtrace_if_needed(ObPLogItem &log_item, const bool force);
   int check_tl_log_limiter(const uint64_t location_hash_val, const int32_t level, const int errcode,
-                           const int64_t log_size, bool &allow);
+                           const int64_t log_size, bool &allow, const char *&limiter_info);
   bool need_print_log_limit_msg();
 
   int alloc_log_item(const int32_t level, const int64_t size, ObPLogItem *&log_item);
@@ -1182,6 +1182,7 @@ inline void ObLogger::do_log_message(const bool is_async,
   bool old_val = set_disable_logging(true);
   DEFER(set_disable_logging(old_val));
   bool allow = true;
+  const char *limiter_info = "";
 
   bool force_bt = false;
   bool disable = false;
@@ -1191,7 +1192,8 @@ inline void ObLogger::do_log_message(const bool is_async,
   const int64_t log_size = limited_left_log_size_ + NORMAL_LOG_SIZE;
   limited_left_log_size_ = 0;
   ObSyslogTimeGuard tg;
-  if (FD_TRACE_FILE != fd_type && OB_FAIL(check_tl_log_limiter(location_hash_val, level, errcode, log_size, allow))) {
+  if (FD_TRACE_FILE != fd_type && OB_FAIL(check_tl_log_limiter(location_hash_val, level, errcode, log_size,
+          allow, limiter_info))) {
     LOG_STDERR("precheck_tl_log_limiter error, ret=%d\n", ret);
   } else if (OB_UNLIKELY(!allow) && !need_print_log_limit_msg()) {
     inc_dropped_log_count(level);
@@ -1234,10 +1236,9 @@ inline void ObLogger::do_log_message(const bool is_async,
     }
 
     if (OB_SUCC(ret) && !allow) {
-      static const char *EXCEED_INFO = " REACH SYSLOG RATE LIMIT";
       int64_t pos = log_item->get_header_len();
       if (OB_FAIL(logdata_print_info(log_item->get_buf(), log_item->get_buf_size(), pos,
-                                     EXCEED_INFO))) {
+                                     limiter_info))) {
         // do nothing
       } else {
         check_log_end(*log_item, pos);
@@ -1296,13 +1297,27 @@ _Pragma("GCC diagnostic pop")
       check_reset_force_allows();
     } /* not allow */
   }
-  last_logging_cost_time_us_ = tg.get_diff();
-  if (OB_UNLIKELY(last_logging_cost_time_us_ > 1000 * 1000)) {
-    char buf[256] = {'\0'};
-    int64_t pos = tg.to_string(buf, sizeof buf);
-    fprintf(stderr, "LOGGER COST TOO MUCH TIME, tid: [%ld], start_ts: %ld, cost: %ld, %.*s, %s\n",
-            GETTID(), tg.get_start_ts(), last_logging_cost_time_us_, static_cast<int>(pos), buf, lbt());
+#ifndef OB_BUILD_RPM
+  const int64_t threshold_us = 500 * 1000;
+#else
+  const int64_t threshold_us = 1000 * 1000;
+#endif
+  const int64_t cost_time = tg.get_diff();
+  if (OB_UNLIKELY(cost_time > threshold_us)) {
+    char buf[512] = {'\0'};
+    const int64_t buf_len = sizeof buf;
+    int64_t pos = 0;
+    int tmp_ret = OB_SUCCESS;
+    if (OB_TMP_FAIL(log_head(tg.get_start_ts(), mod_name, OB_LOG_LEVEL_ERROR, file, line, function,
+                             errcode, buf, buf_len, pos))) {
+    } else if (OB_TMP_FAIL(logdata_printf(buf, buf_len, pos,
+                                          "LOGGER COST TOO MUCH TIME, cost: %ld, ", cost_time))) {
+    } else {
+      pos += tg.to_string(buf + pos, buf_len - pos);
+      fprintf(stderr, "%.*s, BACKTRACE: %s\n", static_cast<int>(pos), buf, lbt());
+    }
   }
+  last_logging_cost_time_us_ = cost_time;
 }
 
 template <typename ... Args>

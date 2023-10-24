@@ -277,9 +277,16 @@ int ObResultSet::on_cmd_execute()
       }
       get_exec_context().set_need_disconnect(false);
     } else {
-      // commit current open transaction, synchronously
-      if (OB_FAIL(ObSqlTransControl::implicit_end_trans(get_exec_context(), false))) {
-        SQL_ENG_LOG(WARN, "fail end implicit trans on cmd execute", K(ret));
+      // implicit end transaction and start transaction will not clear next scope transaction settings by:
+      // a. set by `set transaction read only`
+      // b. set by `set transaction isolation level XXX`
+      const int cmd_type = cmd_->get_cmd_type();
+      bool keep_trans_variable = (cmd_type == stmt::T_START_TRANS);
+      if (OB_FAIL(ObSqlTransControl::implicit_end_trans(get_exec_context(), false, NULL, !keep_trans_variable))) {
+        LOG_WARN("fail end implicit trans on cmd execute", K(ret));
+      } else if (my_session_.need_recheck_txn_readonly() && my_session_.get_tx_read_only()) {
+        ret = OB_ERR_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION;
+        LOG_WARN("cmd can not execute because txn is read only", K(ret), K(cmd_type));
       }
     }
   }
@@ -968,6 +975,25 @@ OB_INLINE int ObResultSet::auto_end_plan_trans(ObPhysicalPlan& plan,
             K(is_async_end_trans_submitted()));
   // explicit start trans will disable auto-commit
   if (!explicit_trans && ac) {
+    // Query like `select 1` will keep next scope set transaction xxx valid
+    // for example:
+    // set session transaction read only;
+    // set @@session.autocommit=1;
+    // set transaction read write;
+    // select 1;
+    // insert into t values(1); -- this will be success
+    //
+    // so, can not reset these transaction variables
+    //
+    // must always commit/rollback the transactional state in `ObTxDesc`
+    // for example:
+    // set session transaction isolation level SERIALIZABLE
+    // -- UDF with: select count(1) from t1;
+    // select UDF1() from dual; -- PL will remain transctional state after run UDF1
+    //
+    // after execute UDF1, snapshot is kept in ObTxDesc, must cleanup before run
+    // other Query
+    bool reset_tx_variable = plan.is_need_trans();
     ObPhysicalPlanCtx *plan_ctx = NULL;
     if (OB_ISNULL(plan_ctx = get_exec_context().get_physical_plan_ctx())) {
       ret = OB_ERR_UNEXPECTED;
@@ -981,7 +1007,9 @@ OB_INLINE int ObResultSet::auto_end_plan_trans(ObPhysicalPlan& plan,
         // 因为InnerSQL没有走Obmp_query接口，而是直接操作ResultSet
         int save_ret = ret;
         if (OB_FAIL(ObSqlTransControl::implicit_end_trans(get_exec_context(),
-                                                          is_rollback))) {
+                                                          is_rollback,
+                                                          NULL,
+                                                          reset_tx_variable))) {
           if (OB_REPLICA_NOT_READABLE != ret) {
               LOG_WARN("sync end trans callback return an error!", K(ret),
                        K(is_rollback), KPC(my_session_.get_tx_desc()));
@@ -1012,7 +1040,8 @@ OB_INLINE int ObResultSet::auto_end_plan_trans(ObPhysicalPlan& plan,
         my_session_.get_end_trans_cb().set_last_error(ret);
         ret = ObSqlTransControl::implicit_end_trans(get_exec_context(),
                                                     is_rollback,
-                                                    &my_session_.get_end_trans_cb());
+                                                    &my_session_.get_end_trans_cb(),
+                                                    reset_tx_variable);
         // NOTE: async callback client will not issued if:
         // 1) it is a rollback, which will succeed immediately
         // 2) the commit submit/starting failed, in this case
@@ -1027,7 +1056,7 @@ OB_INLINE int ObResultSet::auto_end_plan_trans(ObPhysicalPlan& plan,
   }
   NG_TRACE(auto_end_plan_end);
   LOG_TRACE("auto_end_plan_trans.end", K(ret),
-            K(in_trans), K(ac), K(explicit_trans),
+            K(in_trans), K(ac), K(explicit_trans), K(plan.is_need_trans()),
             K(is_rollback),  K(async),
             K(is_async_end_trans_submitted()));
   return ret;

@@ -314,7 +314,8 @@ int ObJsonExprHelper::eval_oracle_json_val(ObExpr *expr,
                                            ObIJsonBase*& j_base,
                                            bool is_format_json,
                                            bool is_strict,
-                                           bool is_bin)
+                                           bool is_bin,
+                                           bool is_absent_null)
 {
   INIT_SUCC(ret);
   ObDatum *json_datum = nullptr;
@@ -323,6 +324,8 @@ int ObJsonExprHelper::eval_oracle_json_val(ObExpr *expr,
 
   if (OB_FAIL(json_arg->eval(ctx, json_datum))) {
     LOG_WARN("eval json arg failed", K(ret), K(json_arg->datum_meta_));
+  } else if ((json_datum->is_null() || ob_is_null(json_arg->obj_meta_.get_type()))
+             && is_absent_null) {
   } else if (OB_FAIL(oracle_datum2_json_val(json_datum,
                                             json_arg->obj_meta_,
                                             allocator,
@@ -997,6 +1000,25 @@ int ObJsonExprHelper::transform_scalar_2jsonBase(const T &datum,
       }
       break;
     }
+    case ObBitType: {
+      // using bit as char array to do cast.
+      uint64_t in_val = datum.get_uint64();
+      char *bit_buf = nullptr;
+      const int32_t bit_buf_len = (OB_MAX_BIT_LENGTH + 7) / 8;
+      int64_t bit_buf_pos = 0;
+      if (OB_ISNULL(bit_buf = static_cast<char*>(allocator->alloc(bit_buf_len)))) {
+        ret = OB_ALLOCATE_MEMORY_FAILED;
+        LOG_WARN("allocate bit buf fail", K(ret), K(type), K(bit_buf_len));
+      } else if (OB_FAIL(bit_to_char_array(in_val, scale, bit_buf, bit_buf_len, bit_buf_pos))) {
+        LOG_WARN("bit_to_char_array fail", K(ret), K(in_val), K(scale), KP(bit_buf), K(bit_buf_len), K(bit_buf_pos));
+      } else if (OB_ISNULL(buf = allocator->alloc(sizeof(ObJsonOpaque)))) {
+        ret = OB_ALLOCATE_MEMORY_FAILED;
+        LOG_WARN("allocate ObJsonOpaque fail", K(ret), K(type), "size", sizeof(ObJsonOpaque));
+      } else {
+        json_node = (ObJsonOpaque *)new(buf)ObJsonOpaque(ObString(bit_buf_pos, bit_buf), type);
+      }
+      break;
+    }
     default:
     {
       ret = OB_INVALID_ARGUMENT;
@@ -1598,7 +1620,7 @@ int ObJsonExprHelper::calc_asciistr_in_expr(const ObString &src,
             } else {
               buf[pos++] = '\\';
             }
-            if (OB_SUCC(ret)) {
+            if (OB_SUCC(ret) && '\\' != wchar) {
               int64_t hex_writtern_bytes = 0;
               if (OB_FAIL(hex_print(temp_buf + i*utf16_minmb_len, utf16_minmb_len,
                                     buf + pos, buf_len - pos, hex_writtern_bytes))) {

@@ -512,6 +512,17 @@ bool ObSQLSessionInfo::is_index_skip_scan_enabled() const
   return bret;
 }
 
+bool ObSQLSessionInfo::is_var_assign_use_das_enabled() const
+{
+  bool bret = true;
+  int64_t tenant_id = get_effective_tenant_id();
+  omt::ObTenantConfigGuard tenant_config(TENANT_CONF(tenant_id));
+  if (tenant_config.is_valid()) {
+    bret = tenant_config->_enable_var_assign_use_das;
+  }
+  return bret;
+}
+
 void ObSQLSessionInfo::destroy(bool skip_sys_var)
 {
   if (is_inited_) {
@@ -2916,9 +2927,9 @@ void ObSQLSessionInfo::check_txn_free_route_alive()
   ObSqlTransControl::check_free_route_tx_alive(*this, txn_free_route_ctx_);
 }
 
-void ObSQLSessionInfo::reset_tx_variable()
+void ObSQLSessionInfo::reset_tx_variable(bool reset_next_scope)
 {
-  ObBasicSessionInfo::reset_tx_variable();
+  ObBasicSessionInfo::reset_tx_variable(reset_next_scope);
   set_early_lock_release(false);
 }
 void ObSQLSessionInfo::destroy_contexts_map(ObContextsMap &map, common::ObIAllocator &alloc)
