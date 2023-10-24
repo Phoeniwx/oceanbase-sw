@@ -29995,6 +29995,33 @@ def_table_schema(
 #21479 GV$OB_CGROUP_CONFIG
 #21480 V$OB_CGROUP_CONFIG
 
+#21481 DBA_OB_INDEX_USAGE
+def_table_schema(
+    owner = 'yangjiali.yjl',
+    table_name     = 'DBA_OB_INDEX_USAGE',
+    table_id       = '21481',
+    table_type = 'SYSTEM_VIEW',
+    gm_columns = [],
+    in_tenant_space = True,
+    rowkey_columns = [],
+    normal_columns = [],
+    view_definition = """
+      SELECT
+        iut.TENANT_ID,
+        iut.TABLE_ID,
+        iut.OBJECT_ID,
+        t.TABLE_NAME as INDEX_NAME,
+        te.TENANT_NAME as USER_NAME,
+        iut.TOTAL_EXEC_COUNT as REF_COUNT,
+        iut.START_USED as FIRST_USED_TIME
+      FROM oceanbase.__all_index_usage_info iut 
+      left JOIN oceanbase.__all_table t ON 
+      iut.OBJECT_ID = t.TABLE_ID AND iut.TENANT_ID = t.TENANT_ID  
+      JOIN oceanbase.__all_tenant te ON 
+      iut.TENANT_ID = te.TENANT_ID
+    """.replace("\n", " "),    
+)
+
 # 余留位置
 
 ################################################################################
