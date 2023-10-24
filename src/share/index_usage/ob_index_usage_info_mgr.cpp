@@ -18,15 +18,12 @@
 #define USING_LOG_PREFIX SERVER
 using namespace oceanbase::common;
 
-namespace oceanbase
-{
-namespace share
-{
+namespace oceanbase {
+namespace share {
 
 const char *OB_INDEX_USAGE_MANAGER = "IndexUsageMgr";
 
-void ObIndexUsageOp::operator()(common::hash::HashMapPair<ObIndexUsageKey, ObIndexUsageInfo> &data)
-{
+void ObIndexUsageOp::operator()(common::hash::HashMapPair<ObIndexUsageKey, ObIndexUsageInfo> &data) {
   if (op_mode_ == ObIndexUsageOpMode::UPDATE) {
     data.second.ref_count_++;
     data.second.exec_count_++;
@@ -38,14 +35,12 @@ void ObIndexUsageOp::operator()(common::hash::HashMapPair<ObIndexUsageKey, ObInd
   }
 }
 
-ObIndexUsageInfoMgr::ObIndexUsageInfoMgr() : is_inited_(false), tenant_id_(MTL_ID()), index_usage_map_(), report_task_(), allocator_(MTL_ID())
-{
-}
+ObIndexUsageInfoMgr::ObIndexUsageInfoMgr()
+    : is_inited_(false), tenant_id_(MTL_ID()), index_usage_map_(), report_task_(), allocator_(MTL_ID()) {}
 
 ObIndexUsageInfoMgr::~ObIndexUsageInfoMgr() {}
 
-int ObIndexUsageInfoMgr::mtl_init(ObIndexUsageInfoMgr *&index_usage_mgr)
-{
+int ObIndexUsageInfoMgr::mtl_init(ObIndexUsageInfoMgr *&index_usage_mgr) {
   int ret = OB_SUCCESS;
   if (OB_FAIL(index_usage_mgr->init())) {
     LOG_WARN("ObIndexUsageInfoMgr init failed", K(ret));
@@ -53,8 +48,7 @@ int ObIndexUsageInfoMgr::mtl_init(ObIndexUsageInfoMgr *&index_usage_mgr)
   return ret;
 }
 
-int ObIndexUsageInfoMgr::init()
-{
+int ObIndexUsageInfoMgr::init() {
   int ret = OB_SUCCESS;
   const ObMemAttr attr(MTL_ID(), OB_INDEX_USAGE_MANAGER);
   if (!is_user_tenant(MTL_ID())) {
@@ -74,8 +68,7 @@ int ObIndexUsageInfoMgr::init()
   return ret;
 }
 
-void ObIndexUsageInfoMgr::destroy()
-{
+void ObIndexUsageInfoMgr::destroy() {
   if (is_inited_) {
     // cancel report task
     if (report_task_.is_inited_) {
@@ -91,8 +84,7 @@ void ObIndexUsageInfoMgr::destroy()
   }
 }
 
-int ObIndexUsageInfoMgr::start()
-{
+int ObIndexUsageInfoMgr::start() {
   int ret = OB_SUCCESS;
   if (is_inited_) {
     if (OB_FAIL(TG_SCHEDULE(MTL(omt::ObSharedTimer *)->get_tg_id(), report_task_, INDEX_USAGE_REPORT_INTERVAL, true))) {
@@ -104,22 +96,19 @@ int ObIndexUsageInfoMgr::start()
   return ret;
 }
 
-void ObIndexUsageInfoMgr::stop()
-{
+void ObIndexUsageInfoMgr::stop() {
   if (OB_LIKELY(report_task_.is_inited_)) {
     TG_CANCEL_TASK(MTL(omt::ObSharedTimer *)->get_tg_id(), report_task_);
   }
 }
 
-void ObIndexUsageInfoMgr::wait()
-{
+void ObIndexUsageInfoMgr::wait() {
   if (OB_LIKELY(report_task_.is_inited_)) {
     TG_WAIT_TASK(MTL(omt::ObSharedTimer *)->get_tg_id(), report_task_);
   }
 }
 
-int ObIndexUsageInfoMgr::update(const uint64_t tenant_id, const uint64_t table_id, const uint64_t index_table_id)
-{
+int ObIndexUsageInfoMgr::update(const uint64_t tenant_id, const uint64_t table_id, const uint64_t index_table_id) {
   int ret = OB_SUCCESS;
   if (!is_inited_ || !is_enabled()) {
     // do nothing
@@ -150,8 +139,7 @@ int ObIndexUsageInfoMgr::update(const uint64_t tenant_id, const uint64_t table_i
 1. sample ObIndexUsageInfo and call @update_func to process them by batch size SAMPLE_BATCH_SIZE
 2. check deleted index and call @del_func to del them
 */
-int ObIndexUsageInfoMgr::sample(const UpdateFunc &update_func, const DelFunc &del_func)
-{
+int ObIndexUsageInfoMgr::sample(const UpdateFunc &update_func, const DelFunc &del_func) {
   int ret = OB_SUCCESS;
 
   if (is_inited_ && is_enabled()) {
@@ -190,7 +178,7 @@ int ObIndexUsageInfoMgr::sample(const UpdateFunc &update_func, const DelFunc &de
           LOG_WARN("flush index usage batch failed", K(ret));
         }
         pair_list.reset();
-      }  
+      }
     }
     pair_list.destroy();
   }
@@ -198,8 +186,7 @@ int ObIndexUsageInfoMgr::sample(const UpdateFunc &update_func, const DelFunc &de
   return ret;
 }
 
-int ObIndexUsageInfoMgr::del(ObIndexUsageKey &key)
-{
+int ObIndexUsageInfoMgr::del(ObIndexUsageKey &key) {
   int ret = OB_SUCCESS;
   if (is_inited_ && OB_FAIL(index_usage_map_.erase_refactored(key))) {
     LOG_WARN("failed to erase index usage key", K(ret));
@@ -207,7 +194,7 @@ int ObIndexUsageInfoMgr::del(ObIndexUsageKey &key)
   return ret;
 }
 
-int ObIndexUsageInfoMgr::check_table_exists(uint64_t tenant_id, uint64_t table_id, bool& exist) {
+int ObIndexUsageInfoMgr::check_table_exists(uint64_t tenant_id, uint64_t table_id, bool &exist) {
   int ret = OB_SUCCESS;
   ObSchemaGetterGuard schema_guard;
   if (OB_FAIL(GCTX.schema_service_->get_tenant_schema_guard(tenant_id, schema_guard))) {

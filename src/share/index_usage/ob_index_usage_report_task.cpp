@@ -16,11 +16,9 @@
 #include "share/rc/ob_tenant_base.h"
 
 #define USING_LOG_PREFIX SERVER
-namespace oceanbase
-{
+namespace oceanbase {
 using namespace common;
-namespace share
-{
+namespace share {
 const char *OB_INDEX_USAGE_REPORT_TASK = "IndexUsageReportTask";
 #define INSERT_INDEX_USAGE_HEAD_SQL                                                                                    \
   "INSERT INTO %s"                                                                                                     \
@@ -36,8 +34,7 @@ const char *OB_INDEX_USAGE_REPORT_TASK = "IndexUsageReportTask";
   "last_flush_time=VALUES(last_flush_time)"
 ObIndexUsageReportTask::ObIndexUsageReportTask() : is_inited_(false), sql_proxy_(nullptr) {}
 
-void ObIndexUsageReportTask::runTimerTask()
-{
+void ObIndexUsageReportTask::runTimerTask() {
   int ret = OB_SUCCESS;
   if (OB_ISNULL(mgr_)) {
     ret = OB_ERR_UNEXPECTED;
@@ -53,8 +50,7 @@ void ObIndexUsageReportTask::runTimerTask()
   }
 }
 
-int ObIndexUsageReportTask::storage_index_usage(const ObIndexUsagePairList &info_list)
-{
+int ObIndexUsageReportTask::storage_index_usage(const ObIndexUsagePairList &info_list) {
   int ret = OB_SUCCESS;
   if (OB_ISNULL(sql_proxy_)) {
     ret = OB_ERR_UNEXPECTED;
@@ -78,8 +74,7 @@ int ObIndexUsageReportTask::storage_index_usage(const ObIndexUsagePairList &info
   return ret;
 }
 
-int ObIndexUsageReportTask::del_index_usage(const ObIndexUsageKey &key)
-{
+int ObIndexUsageReportTask::del_index_usage(const ObIndexUsageKey &key) {
   int ret = OB_SUCCESS;
   ObDMLSqlSplicer dml;
   ObDMLExecHelper exec(*sql_proxy_, common::OB_SYS_TENANT_ID);

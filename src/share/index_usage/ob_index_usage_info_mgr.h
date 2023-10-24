@@ -20,10 +20,8 @@
 #include "lib/task/ob_timer.h"
 #include "lib/time/ob_time_utility.h"
 
-namespace oceanbase
-{
-namespace share
-{
+namespace oceanbase {
+namespace share {
 
 class ObIndexUsageInfoMgr;
 
@@ -34,28 +32,23 @@ enum ObIndexUsageOpMode {
 
 struct ObIndexUsageKey final {
   ObIndexUsageKey(uint64_t tenant_id, uint64_t table_id, uint64_t index_table_id)
-      : tenant_id_(tenant_id), table_id_(table_id), index_table_id_(index_table_id)
-  {
-  }
+      : tenant_id_(tenant_id), table_id_(table_id), index_table_id_(index_table_id) {}
 
   ObIndexUsageKey() {}
   ~ObIndexUsageKey() {}
 
-  uint64_t hash() const
-  {
+  uint64_t hash() const {
     uint64_t hash_value = 0;
     hash_value = common::murmurhash(&tenant_id_, sizeof(uint64_t), hash_value);
     hash_value = common::murmurhash(&table_id_, sizeof(uint64_t), hash_value);
     hash_value = common::murmurhash(&index_table_id_, sizeof(uint64_t), hash_value);
     return hash_value;
   }
-  inline int hash(uint64_t &hash_val) const
-  {
+  inline int hash(uint64_t &hash_val) const {
     hash_val = hash();
     return OB_SUCCESS;
   }
-  bool operator==(const ObIndexUsageKey &other) const
-  {
+  bool operator==(const ObIndexUsageKey &other) const {
     return tenant_id_ == other.tenant_id_ && table_id_ == other.table_id_ && index_table_id_ == other.index_table_id_;
   }
   TO_STRING_KV(K_(tenant_id), K_(table_id), K_(index_table_id));
@@ -69,27 +62,18 @@ struct ObIndexUsageKey final {
 struct ObIndexUsageInfo final {
   ObIndexUsageInfo(uint64_t index_table_id)
       : index_table_id_(index_table_id), ref_count_(0), access_count_(0), exec_count_(0), rows_returned_(0),
-        start_used_time_(ObTimeUtility::current_time()), last_used_time_(start_used_time_)
-  {
-  }
+        start_used_time_(ObTimeUtility::current_time()), last_used_time_(start_used_time_) {}
   ObIndexUsageInfo() {}
   ~ObIndexUsageInfo() {}
 
-  void reset()
-  {
+  void reset() {
     ref_count_ = 0;
     access_count_ = 0;
     exec_count_ = 0;
     rows_returned_ = 0;
   }
-  TO_STRING_KV(
-    K_(index_table_id), 
-    K_(ref_count),
-    K_(access_count), 
-    K_(exec_count), 
-    K_(rows_returned),
-    K_(start_used_time), 
-    K_(last_used_time));
+  TO_STRING_KV(K_(index_table_id), K_(ref_count), K_(access_count), K_(exec_count), K_(rows_returned),
+               K_(start_used_time), K_(last_used_time));
 
   uint64_t index_table_id_;
   int64_t ref_count_;
@@ -110,7 +94,7 @@ public:
   static const int64_t INDEX_USAGE_REPORT_INTERVAL = 15 * 60 * 1000L * 1000L; // 15min
 public:
   ObIndexUsageReportTask();
-  virtual ~ObIndexUsageReportTask() {};
+  virtual ~ObIndexUsageReportTask(){};
 
 private:
   virtual void runTimerTask();
@@ -126,9 +110,9 @@ private:
 // callback for update or reset map value
 class ObIndexUsageOp final {
 public:
-  explicit ObIndexUsageOp (ObIndexUsageOpMode mode) : op_mode_(mode), old_info_() {}
+  explicit ObIndexUsageOp(ObIndexUsageOpMode mode) : op_mode_(mode), old_info_() {}
   virtual ~ObIndexUsageOp() {}
-  void operator() (common::hash::HashMapPair<ObIndexUsageKey, ObIndexUsageInfo> &data);
+  void operator()(common::hash::HashMapPair<ObIndexUsageKey, ObIndexUsageInfo> &data);
   const ObIndexUsageInfo &retrive_info() { return old_info_; }
 
 private:
@@ -168,7 +152,7 @@ private:
   bool is_enabled();
   bool is_sample_mode();
   int64_t get_iut_entries();
-  int check_table_exists(uint64_t tenant_id, uint64_t table_id, bool& exist);
+  int check_table_exists(uint64_t tenant_id, uint64_t table_id, bool &exist);
 
 private:
   bool is_inited_;
