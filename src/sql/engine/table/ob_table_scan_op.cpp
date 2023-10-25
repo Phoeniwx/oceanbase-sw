@@ -1332,8 +1332,8 @@ int ObTableScanOp::inner_close()
 
   if (MY_SPEC.should_scan_index()) {
     uint64_t tenant_id = GET_MY_SESSION(ctx_)->get_effective_tenant_id();
-    uint64_t table_id = MY_CTDEF.scan_ctdef_.ref_table_id_;
-    uint64_t index_id = MY_SPEC.get_ref_table_id();
+    uint64_t index_id = MY_CTDEF.scan_ctdef_.ref_table_id_;
+    uint64_t table_id = MY_SPEC.get_ref_table_id();
     oceanbase::share::ObIndexUsageInfoMgr* mgr = MTL(oceanbase::share::ObIndexUsageInfoMgr*);
     if (OB_ISNULL(mgr)) {
       LOG_WARN("ob index usage is null", K(ret));

@@ -30008,17 +30008,19 @@ def_table_schema(
     view_definition = """
       SELECT
         iut.TENANT_ID,
+        d.DATABASE_NAME,
         iut.TABLE_ID,
+        dt.TABLE_NAME,
         iut.OBJECT_ID,
         t.TABLE_NAME as INDEX_NAME,
         te.TENANT_NAME as USER_NAME,
         iut.TOTAL_EXEC_COUNT as REF_COUNT,
         iut.START_USED as FIRST_USED_TIME
       FROM oceanbase.__all_index_usage_info iut 
-      left JOIN oceanbase.__all_table t ON 
-      iut.OBJECT_ID = t.TABLE_ID AND iut.TENANT_ID = t.TENANT_ID  
-      JOIN oceanbase.__all_tenant te ON 
-      iut.TENANT_ID = te.TENANT_ID
+      JOIN oceanbase.__all_table t ON iut.OBJECT_ID = t.TABLE_ID  
+      JOIN oceanbase.__all_table dt ON iut.TABLE_ID = dt.TABLE_ID 
+      JOIN oceanbase.__all_database d ON dt.database_id = d.database_id 
+      JOIN OCEANBASE.__ALL_VIRTUAL_TENANT_MYSQL_SYS_AGENT te ON iut.TENANT_ID = te.TENANT_ID
     """.replace("\n", " "),    
 )
 

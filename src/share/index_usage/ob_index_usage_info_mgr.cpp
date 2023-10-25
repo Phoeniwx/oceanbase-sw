@@ -118,6 +118,8 @@ int ObIndexUsageInfoMgr::update(const uint64_t tenant_id, const uint64_t table_i
     if (tenant_id == OB_INVALID_TENANT_ID || table_id == OB_INVALID_ID || index_table_id == OB_INVALID_ID) {
       ret = OB_ERR_UNEXPECTED;
       LOG_WARN("usage of invalid ids", K(ret));
+    } else if (is_inner_object_id(table_id)) {
+      // do nothing
     } else if (OB_SUCC(index_usage_map_.atomic_refactored(key, update_op))) {
       // key exists, update success
     } else if (OB_LIKELY(ret == OB_HASH_NOT_EXIST)) {

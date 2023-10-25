@@ -27,7 +27,7 @@ const char *OB_INDEX_USAGE_REPORT_TASK = "IndexUsageReportTask";
   "total_exec_count,start_used,last_used,last_flush_time) VALUES"
 #define INSERT_INDEX_USAGE_ON_DUPLICATE_END_SQL                                                                        \
   " ON DUPLICATE KEY UPDATE "                                                                                          \
-  "total_access_count=total_access_count+VALUES(total_exec_count),"                                                    \
+  "total_access_count=total_access_count+VALUES(total_access_count),"                                                    \
   "total_rows_returned=total_rows_returned+VALUES(total_rows_returned),"                                               \
   "total_exec_count=total_exec_count+VALUES(total_exec_count),"                                                        \
   "start_used=VALUES(start_used),last_used=VALUES(last_used),"                                                         \
@@ -67,7 +67,7 @@ int ObIndexUsageReportTask::storage_index_usage(const ObIndexUsagePairList &info
     insert_update_sql.set_length(insert_update_sql.length() - 1);
     insert_update_sql.append(INSERT_INDEX_USAGE_ON_DUPLICATE_END_SQL);
     int64_t affected_rows;
-    if (OB_FAIL(sql_proxy_->write(insert_update_sql.ptr(), affected_rows))) {
+    if (OB_FAIL(sql_proxy_->write(MTL_ID(), insert_update_sql.ptr(), affected_rows))) {
       LOG_WARN("insert update sql error", K(ret), K(insert_update_sql));
     }
   }
@@ -77,7 +77,7 @@ int ObIndexUsageReportTask::storage_index_usage(const ObIndexUsagePairList &info
 int ObIndexUsageReportTask::del_index_usage(const ObIndexUsageKey &key) {
   int ret = OB_SUCCESS;
   ObDMLSqlSplicer dml;
-  ObDMLExecHelper exec(*sql_proxy_, common::OB_SYS_TENANT_ID);
+  ObDMLExecHelper exec(*sql_proxy_, MTL_ID());
   int64_t affected_rows = 0;
 
   if (OB_ISNULL(sql_proxy_)) {
