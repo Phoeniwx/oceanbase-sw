@@ -1341,23 +1341,6 @@ int ObTableScanOp::inner_close()
       LOG_WARN("fail to update index usage info", K(ret));
     }
   }
-  // uint64_t table_id = MY_SPEC.get_ref_table_id();
-  // ObSQLSessionInfo* my_session = GET_MY_SESSION(ctx_);
-  // if (OB_ISNULL(my_session)) {
-  //   ret = OB_ERR_UNEXPECTED;
-  //   LOG_WARN("invalid session", K(ret));
-  // } else {
-  //   uint64_t tenant_id = my_session->get_effective_tenant_id();
-    
-  //   MTL_SWITCH(tenant_id) {
-  //     oceanbase::share::ObIndexUsageInfoMgr* mgr = MTL(oceanbase::share::ObIndexUsageInfoMgr*);
-  //     if (OB_ISNULL(mgr)) {
-  //       LOG_WARN("ob index usage is null", K(ret));
-  //     } else if (OB_FAIL(mgr->update(tenant_id, table_id))) {
-  //       LOG_WARN("fail to update index usage info", K(ret));
-  //     }
-  //   }
-  // }
   
   if (das_ref_.has_task()) {
     int tmp_ret = fill_storage_feedback_info();

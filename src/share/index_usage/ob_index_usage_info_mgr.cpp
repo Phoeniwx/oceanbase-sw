@@ -125,6 +125,7 @@ int ObIndexUsageInfoMgr::update(const uint64_t tenant_id, const uint64_t table_i
     } else if (OB_LIKELY(ret == OB_HASH_NOT_EXIST)) {
       // key not exist, insert new one
       ObIndexUsageInfo new_info(index_table_id);
+      new_info.exec_count_ = 1;
       if (get_iut_entries() <= index_usage_map_.size()) {
         LOG_WARN("index usage hashmap reaches max entries", K(ret));
       } else if (OB_FAIL(index_usage_map_.set_or_update(key, new_info, update_op))) {
