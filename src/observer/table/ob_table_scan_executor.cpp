@@ -268,9 +268,11 @@ int ObTableApiScanExecutor::close()
   int ret = OB_SUCCESS;
   
   oceanbase::share::ObIndexUsageInfoMgr *mgr = MTL(oceanbase::share::ObIndexUsageInfoMgr *);
-  if(OB_ISNULL(mgr)){
+  if (tb_ctx_.get_table_id() == tb_ctx_.get_ref_table_id()) {
+    // use primary key, do nothing
+  } else if (OB_ISNULL(mgr)){
     LOG_WARN("ob index usage is null",K(ret));
-  } else if(OB_FAIL(mgr->update(tb_ctx_.get_tenant_id(), tb_ctx_.get_table_id(), tb_ctx_.get_ref_table_id()))){
+  } else if (OB_FAIL(mgr->update(tb_ctx_.get_tenant_id(), tb_ctx_.get_table_id(), tb_ctx_.get_ref_table_id()))){
     LOG_WARN("fail to update index usage info",K(ret));
   }
 
