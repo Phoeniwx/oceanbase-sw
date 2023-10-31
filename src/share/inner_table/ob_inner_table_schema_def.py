@@ -30015,7 +30015,7 @@ def_table_schema(
 def_table_schema(
     owner = 'yangjiali.yjl',
     table_name     = 'DBA_OB_INDEX_USAGE',
-    table_id       = '21481',
+    table_id       = '21491',
     table_type = 'SYSTEM_VIEW',
     gm_columns = [],
     in_tenant_space = True,
