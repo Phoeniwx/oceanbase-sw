@@ -355,6 +355,7 @@ bool ObTransferUtils::is_need_retry_error(const int err)
   case OB_TRANS_TIMEOUT:
   case OB_TIMEOUT:
   case OB_EAGAIN:
+  case OB_ERR_EXCLUSIVE_LOCK_CONFLICT:
       bool_ret = true;
       break;
     default:
