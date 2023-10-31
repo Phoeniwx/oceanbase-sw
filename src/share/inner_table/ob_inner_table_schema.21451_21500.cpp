@@ -60,7 +60,7 @@ int ObInnerTableSchema::cdb_ob_recover_table_jobs_schema(ObTableSchema &table_sc
   table_schema.set_collation_type(ObCharset::get_default_collation(ObCharset::get_default_charset()));
 
   if (OB_SUCC(ret)) {
-    if (OB_FAIL(table_schema.set_view_definition(R"__(     SELECT     TENANT_ID,     JOB_ID,     INITIATOR_TENANT_ID,     INITIATOR_JOB_ID,     USEC_TO_TIME(START_TS) AS START_TIMESTAMP,     CASE        WHEN END_TS = 0         THEN NULL       ELSE         USEC_TO_TIME(END_TS)       END AS FINISH_TIMESTAMP,     STATUS,     AUX_TENANT_NAME,     TARGET_TENANT_NAME,     IMPORT_ALL,     DB_LIST,     TABLE_LIST,     RESTORE_SCN,     CASE       WHEN RESTORE_SCN = 0         THEN NULL       ELSE         SCN_TO_TIMESTAMP(RESTORE_SCN)       END AS RESTORE_SCN_DISPLAY,     RESTORE_OPTION,     BACKUP_DEST,     BACKUP_SET_LIST,     BACKUP_PIECE_LIST,     BACKUP_PASSWD,     EXTERNAL_KMS_INFO,     REMAP_DB_LIST,     REMAP_TABLE_LIST,     REMAP_TABLEGROUP_LIST,     REMAP_TABLESPACE_LIST,     RESULT,     COMMENT,     DESCRIPTION     FROM OCEANBASE.__ALL_VIRTUAL_RECOVER_TABLE_JOB; )__"))) {
+    if (OB_FAIL(table_schema.set_view_definition(R"__(     SELECT     TENANT_ID,     JOB_ID,     INITIATOR_TENANT_ID,     INITIATOR_JOB_ID,     USEC_TO_TIME(START_TS) AS START_TIMESTAMP,     CASE       WHEN END_TS = 0         THEN NULL       ELSE         USEC_TO_TIME(END_TS)       END AS FINISH_TIMESTAMP,     STATUS,     AUX_TENANT_NAME,     TARGET_TENANT_NAME,     IMPORT_ALL,     DB_LIST,     TABLE_LIST,     RESTORE_SCN,     CASE       WHEN RESTORE_SCN = 0         THEN NULL       ELSE         SCN_TO_TIMESTAMP(RESTORE_SCN)       END AS RESTORE_SCN_DISPLAY,     RESTORE_OPTION,     BACKUP_DEST,     BACKUP_SET_LIST,     BACKUP_PIECE_LIST,     BACKUP_PASSWD,     EXTERNAL_KMS_INFO,     REMAP_DB_LIST,     REMAP_TABLE_LIST,     REMAP_TABLEGROUP_LIST,     REMAP_TABLESPACE_LIST,     RESULT,     COMMENT,     DESCRIPTION     FROM OCEANBASE.__ALL_VIRTUAL_RECOVER_TABLE_JOB; )__"))) {
       LOG_ERROR("fail to set view_definition", K(ret));
     }
   }
@@ -110,7 +110,7 @@ int ObInnerTableSchema::dba_ob_recover_table_jobs_schema(ObTableSchema &table_sc
   table_schema.set_collation_type(ObCharset::get_default_collation(ObCharset::get_default_charset()));
 
   if (OB_SUCC(ret)) {
-    if (OB_FAIL(table_schema.set_view_definition(R"__(     SELECT     JOB_ID,     INITIATOR_TENANT_ID,     INITIATOR_JOB_ID,     USEC_TO_TIME(START_TS) AS START_TIMESTAMP,     CASE        WHEN END_TS = 0         THEN NULL       ELSE         USEC_TO_TIME(END_TS)       END AS FINISH_TIMESTAMP,     STATUS,     AUX_TENANT_NAME,     TARGET_TENANT_NAME,     IMPORT_ALL,     DB_LIST,     TABLE_LIST,     RESTORE_SCN,     CASE       WHEN RESTORE_SCN = 0         THEN NULL       ELSE         SCN_TO_TIMESTAMP(RESTORE_SCN)       END AS RESTORE_SCN_DISPLAY,     RESTORE_OPTION,     BACKUP_DEST,     BACKUP_SET_LIST,     BACKUP_PIECE_LIST,     BACKUP_PASSWD,     EXTERNAL_KMS_INFO,     REMAP_DB_LIST,     REMAP_TABLE_LIST,     REMAP_TABLEGROUP_LIST,     REMAP_TABLESPACE_LIST,     RESULT,     COMMENT,     DESCRIPTION     FROM OCEANBASE.__ALL_VIRTUAL_RECOVER_TABLE_JOB     WHERE TENANT_ID = EFFECTIVE_TENANT_ID() )__"))) {
+    if (OB_FAIL(table_schema.set_view_definition(R"__(     SELECT     JOB_ID,     INITIATOR_TENANT_ID,     INITIATOR_JOB_ID,     USEC_TO_TIME(START_TS) AS START_TIMESTAMP,     CASE       WHEN END_TS = 0         THEN NULL       ELSE         USEC_TO_TIME(END_TS)       END AS FINISH_TIMESTAMP,     STATUS,     AUX_TENANT_NAME,     TARGET_TENANT_NAME,     IMPORT_ALL,     DB_LIST,     TABLE_LIST,     RESTORE_SCN,     CASE       WHEN RESTORE_SCN = 0         THEN NULL       ELSE         SCN_TO_TIMESTAMP(RESTORE_SCN)       END AS RESTORE_SCN_DISPLAY,     RESTORE_OPTION,     BACKUP_DEST,     BACKUP_SET_LIST,     BACKUP_PIECE_LIST,     BACKUP_PASSWD,     EXTERNAL_KMS_INFO,     REMAP_DB_LIST,     REMAP_TABLE_LIST,     REMAP_TABLEGROUP_LIST,     REMAP_TABLESPACE_LIST,     RESULT,     COMMENT,     DESCRIPTION     FROM OCEANBASE.__ALL_VIRTUAL_RECOVER_TABLE_JOB     WHERE TENANT_ID = EFFECTIVE_TENANT_ID() )__"))) {
       LOG_ERROR("fail to set view_definition", K(ret));
     }
   }
@@ -260,7 +260,7 @@ int ObInnerTableSchema::cdb_ob_import_table_jobs_schema(ObTableSchema &table_sch
   table_schema.set_collation_type(ObCharset::get_default_collation(ObCharset::get_default_charset()));
 
   if (OB_SUCC(ret)) {
-    if (OB_FAIL(table_schema.set_view_definition(R"__(     SELECT     TENANT_ID,     JOB_ID,     INITIATOR_TENANT_ID,     INITIATOR_JOB_ID,     USEC_TO_TIME(START_TS) AS START_TIMESTAMP,     CASE        WHEN END_TS = 0         THEN NULL       ELSE         USEC_TO_TIME(END_TS)       END AS FINISH_TIMESTAMP,     SRC_TENANT_NAME,     SRC_TENANT_ID,     STATUS,     IMPORT_ALL,     DB_LIST,     TABLE_LIST,     REMAP_DB_LIST,     REMAP_TABLE_LIST,     REMAP_TABLEGROUP_LIST,     REMAP_TABLESPACE_LIST,     TOTAL_TABLE_COUNT,     FINISHED_TABLE_COUNT,     FAILED_TABLE_COUNT,     RESULT,     COMMENT,     DESCRIPTION     FROM OCEANBASE.__ALL_VIRTUAL_IMPORT_TABLE_JOB; )__"))) {
+    if (OB_FAIL(table_schema.set_view_definition(R"__(     SELECT     TENANT_ID,     JOB_ID,     INITIATOR_TENANT_ID,     INITIATOR_JOB_ID,     USEC_TO_TIME(START_TS) AS START_TIMESTAMP,     CASE       WHEN END_TS = 0         THEN NULL       ELSE         USEC_TO_TIME(END_TS)       END AS FINISH_TIMESTAMP,     SRC_TENANT_NAME,     SRC_TENANT_ID,     STATUS,     IMPORT_ALL,     DB_LIST,     TABLE_LIST,     REMAP_DB_LIST,     REMAP_TABLE_LIST,     REMAP_TABLEGROUP_LIST,     REMAP_TABLESPACE_LIST,     TOTAL_TABLE_COUNT,     FINISHED_TABLE_COUNT,     FAILED_TABLE_COUNT,     RESULT,     COMMENT,     DESCRIPTION     FROM OCEANBASE.__ALL_VIRTUAL_IMPORT_TABLE_JOB; )__"))) {
       LOG_ERROR("fail to set view_definition", K(ret));
     }
   }
@@ -310,7 +310,7 @@ int ObInnerTableSchema::dba_ob_import_table_jobs_schema(ObTableSchema &table_sch
   table_schema.set_collation_type(ObCharset::get_default_collation(ObCharset::get_default_charset()));
 
   if (OB_SUCC(ret)) {
-    if (OB_FAIL(table_schema.set_view_definition(R"__(     SELECT     JOB_ID,     INITIATOR_TENANT_ID,     INITIATOR_JOB_ID,     USEC_TO_TIME(START_TS) AS START_TIMESTAMP,     CASE        WHEN END_TS = 0         THEN NULL       ELSE         USEC_TO_TIME(END_TS)       END AS FINISH_TIMESTAMP,     SRC_TENANT_NAME,     SRC_TENANT_ID,     STATUS,     IMPORT_ALL,     DB_LIST,     TABLE_LIST,     REMAP_DB_LIST,     REMAP_TABLE_LIST,     REMAP_TABLEGROUP_LIST,     REMAP_TABLESPACE_LIST,     TOTAL_TABLE_COUNT,     FINISHED_TABLE_COUNT,     FAILED_TABLE_COUNT,     RESULT,     COMMENT,     DESCRIPTION     FROM OCEANBASE.__ALL_VIRTUAL_IMPORT_TABLE_JOB     WHERE TENANT_ID = EFFECTIVE_TENANT_ID() )__"))) {
+    if (OB_FAIL(table_schema.set_view_definition(R"__(     SELECT     JOB_ID,     INITIATOR_TENANT_ID,     INITIATOR_JOB_ID,     USEC_TO_TIME(START_TS) AS START_TIMESTAMP,     CASE       WHEN END_TS = 0         THEN NULL       ELSE         USEC_TO_TIME(END_TS)       END AS FINISH_TIMESTAMP,     SRC_TENANT_NAME,     SRC_TENANT_ID,     STATUS,     IMPORT_ALL,     DB_LIST,     TABLE_LIST,     REMAP_DB_LIST,     REMAP_TABLE_LIST,     REMAP_TABLEGROUP_LIST,     REMAP_TABLESPACE_LIST,     TOTAL_TABLE_COUNT,     FINISHED_TABLE_COUNT,     FAILED_TABLE_COUNT,     RESULT,     COMMENT,     DESCRIPTION     FROM OCEANBASE.__ALL_VIRTUAL_IMPORT_TABLE_JOB     WHERE TENANT_ID = EFFECTIVE_TENANT_ID() )__"))) {
       LOG_ERROR("fail to set view_definition", K(ret));
     }
   }
@@ -711,6 +711,56 @@ int ObInnerTableSchema::v_ob_tenant_runtime_info_schema(ObTableSchema &table_sch
 
   if (OB_SUCC(ret)) {
     if (OB_FAIL(table_schema.set_view_definition(R"__(   SELECT *   FROM     oceanbase.GV$OB_TENANT_RUNTIME_INFO   WHERE SVR_IP = HOST_IP() AND SVR_PORT = RPC_PORT() )__"))) {
+      LOG_ERROR("fail to set view_definition", K(ret));
+    }
+  }
+  table_schema.set_index_using_type(USING_BTREE);
+  table_schema.set_row_store_type(ENCODING_ROW_STORE);
+  table_schema.set_store_format(OB_STORE_FORMAT_DYNAMIC_MYSQL);
+  table_schema.set_progressive_merge_round(1);
+  table_schema.set_storage_format_version(3);
+  table_schema.set_tablet_id(0);
+
+  table_schema.set_max_used_column_id(column_id);
+  return ret;
+}
+
+int ObInnerTableSchema::dba_ob_index_usage_schema(ObTableSchema &table_schema)
+{
+  int ret = OB_SUCCESS;
+  uint64_t column_id = OB_APP_MIN_COLUMN_ID - 1;
+
+  //generated fields:
+  table_schema.set_tenant_id(OB_SYS_TENANT_ID);
+  table_schema.set_tablegroup_id(OB_INVALID_ID);
+  table_schema.set_database_id(OB_SYS_DATABASE_ID);
+  table_schema.set_table_id(OB_DBA_OB_INDEX_USAGE_TID);
+  table_schema.set_rowkey_split_pos(0);
+  table_schema.set_is_use_bloomfilter(false);
+  table_schema.set_progressive_merge_num(0);
+  table_schema.set_rowkey_column_num(0);
+  table_schema.set_load_type(TABLE_LOAD_TYPE_IN_DISK);
+  table_schema.set_table_type(SYSTEM_VIEW);
+  table_schema.set_index_type(INDEX_TYPE_IS_NOT);
+  table_schema.set_def_type(TABLE_DEF_TYPE_INTERNAL);
+
+  if (OB_SUCC(ret)) {
+    if (OB_FAIL(table_schema.set_table_name(OB_DBA_OB_INDEX_USAGE_TNAME))) {
+      LOG_ERROR("fail to set table_name", K(ret));
+    }
+  }
+
+  if (OB_SUCC(ret)) {
+    if (OB_FAIL(table_schema.set_compress_func_name(OB_DEFAULT_COMPRESS_FUNC_NAME))) {
+      LOG_ERROR("fail to set compress_func_name", K(ret));
+    }
+  }
+  table_schema.set_part_level(PARTITION_LEVEL_ZERO);
+  table_schema.set_charset_type(ObCharset::get_default_charset());
+  table_schema.set_collation_type(ObCharset::get_default_collation(ObCharset::get_default_charset()));
+
+  if (OB_SUCC(ret)) {
+    if (OB_FAIL(table_schema.set_view_definition(R"__(       SELECT         iut.TENANT_ID,         iut.TABLE_ID,         iut.OBJECT_ID,         t.TABLE_NAME as INDEX_NAME,         te.TENANT_NAME as USER_NAME,         iut.TOTAL_EXEC_COUNT as REF_COUNT,         iut.START_USED as FIRST_USED_TIME       FROM oceanbase.__all_index_usage_info iut        JOIN oceanbase.__all_table t ON iut.OBJECT_ID = t.TABLE_ID         JOIN OCEANBASE.__ALL_VIRTUAL_TENANT_MYSQL_SYS_AGENT te ON iut.TENANT_ID = te.TENANT_ID     )__"))) {
       LOG_ERROR("fail to set view_definition", K(ret));
     }
   }

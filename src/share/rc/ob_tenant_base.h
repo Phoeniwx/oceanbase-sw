@@ -195,6 +195,7 @@ class ObGlobalAutoIncService;
 class ObDagWarningHistoryManager;
 class ObTenantErrsimModuleMgr;
 class ObTenantErrsimEventMgr;
+class ObIndexUsageInfoMgr;
 namespace schema
 {
   class ObTenantSchemaService;
@@ -319,8 +320,9 @@ using ObTableScanIteratorObjPool = common::ObServerObjectPool<oceanbase::storage
       oceanbase::common::ObOptStatMonitorManager*,  \
       omt::ObTenantSrs*,                            \
       table::ObHTableLockMgr*,                      \
-      table::ObTTLService*,                         \
-      table::ObTableApiSessPoolMgr*                \
+      table::ObTTLService*,                       \
+      table::ObTableApiSessPoolMgr*,             \
+      share::ObIndexUsageInfoMgr*                \
   )
 
 

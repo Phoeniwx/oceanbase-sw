@@ -75,6 +75,8 @@ ob_unittest(test_json_bin)
 ob_unittest(test_json_path)
 ob_unittest(test_json_tree)
 
+ob_unittest(test_index_usage)
+
 if(OB_BUILD_CLOSE_MODULES)
   ob_unittest(test_xml_bin)
   ob_unittest(test_xml_parser)

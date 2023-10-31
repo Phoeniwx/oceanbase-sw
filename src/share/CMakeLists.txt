@@ -506,6 +506,11 @@ if (OB_ERRSIM)
  )
 endif()
 
+ob_set_subtarget(ob_share index_usage
+  index_usage/ob_index_usage_info_mgr.cpp
+  index_usage/ob_index_usage_report_task.cpp
+)
+
 ob_set_subtarget(ob_share throttle
   throttle/ob_throttle_common.cpp
 )

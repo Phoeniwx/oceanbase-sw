@@ -6306,6 +6306,31 @@ def_table_schema(
 # 490 : __all_routine_privilege
 # 491 : __all_routine_privilege_history
 # 492 : __wr_sqlstat
+# 495 : __all_index_usage_info
+def_table_schema(
+  owner = 'yangjiali.yjl',
+  table_name     = '__all_index_usage_info',
+  table_id       = '495',
+  table_type     = 'SYSTEM_TABLE',
+  gm_columns     = ['gmt_create', 'gmt_modified'],
+  rowkey_columns = [
+      ('tenant_id', 'int'),
+      ('table_id', 'int'),        # main table id
+      ('object_id', 'int')				# index table id
+  ],
+  in_tenant_space = True,
+  normal_columns = [
+      ('name', 'varchar:128'),			    # index table name
+      ('owner', 'varchar:128'),			    # tenant name
+      ('total_access_count', 'bigint:20'),		# access count
+      ('total_exec_count', 'bigint:20'),		  # used count
+      ('total_rows_returned', 'bigint:20'),		# reserved.
+      ('start_used', 'timestamp'),		  # first time to used
+      ('last_used','timestamp'),			  # last time to use
+      ('last_flush_time', 'timestamp')  # last time to flush
+  ],
+)
+
 #
 # 余留位置
 ################################################################################
@@ -29974,6 +29999,7 @@ def_table_schema(
 
 #21479 GV$OB_CGROUP_CONFIG
 #21480 V$OB_CGROUP_CONFIG
+
 #21481 DBA_WR_SYSTEM_EVENT
 #21482 CDB_WR_SYSTEM_EVENT
 #21483 DBA_WR_EVENT_NAME
@@ -29984,6 +30010,31 @@ def_table_schema(
 #21488 V$SQLSTAT
 #21489 DBA_WR_SQLSTAT
 #21490 CDB_WR_SQLSTAT
+
+#21491 DBA_OB_INDEX_USAGE
+def_table_schema(
+    owner = 'yangjiali.yjl',
+    table_name     = 'DBA_OB_INDEX_USAGE',
+    table_id       = '21491',
+    table_type = 'SYSTEM_VIEW',
+    gm_columns = [],
+    in_tenant_space = True,
+    rowkey_columns = [],
+    normal_columns = [],
+    view_definition = """
+      SELECT
+        iut.TENANT_ID,
+        iut.TABLE_ID,
+        iut.OBJECT_ID,
+        t.TABLE_NAME as INDEX_NAME,
+        te.TENANT_NAME as USER_NAME,
+        iut.TOTAL_EXEC_COUNT as REF_COUNT,
+        iut.START_USED as FIRST_USED_TIME
+      FROM oceanbase.__all_index_usage_info iut 
+      JOIN oceanbase.__all_table t ON iut.OBJECT_ID = t.TABLE_ID  
+      JOIN OCEANBASE.__ALL_VIRTUAL_TENANT_MYSQL_SYS_AGENT te ON iut.TENANT_ID = te.TENANT_ID
+    """.replace("\n", " "),    
+)
 
 # 余留位置
 

@@ -1679,3 +1679,17 @@ DEF_STR_WITH_CHECKER(sql_protocol_min_tls_version, OB_CLUSTER_PARAMETER, "none",
 DEF_MODE_WITH_PARSER(_obkv_feature_mode, OB_CLUSTER_PARAMETER, "", common::ObKvFeatureModeParser,
     "_obkv_feature_mode is a option list to control specified OBKV features on/off.",
     ObParameterAttr(Section::OBSERVER, Source::DEFAULT, EditLevel::DYNAMIC_EFFECTIVE));
+
+// index usage
+DEF_BOOL(_iut_enable, OB_TENANT_PARAMETER, "True",
+    "specifies whether allow the index table usage start monitoring.",
+    ObParameterAttr(Section::TENANT, Source::DEFAULT, EditLevel::DYNAMIC_EFFECTIVE));
+
+DEF_INT(_iut_max_entries, OB_TENANT_PARAMETER, "30000", "[0,]",
+    "maximum of index entries to be monitoring.",
+    ObParameterAttr(Section::TENANT, Source::DEFAULT, EditLevel::DYNAMIC_EFFECTIVE))
+
+DEF_STR_WITH_CHECKER(_iut_stat_collection_type, OB_TENANT_PARAMETER, "SAMPLE", 
+    common::ObConfigIndexStatsModeChecker,
+    "specify index table usage stat collection type, values: SAMPLE, ALL",
+    ObParameterAttr(Section::TENANT, Source::DEFAULT, EditLevel::DYNAMIC_EFFECTIVE));
