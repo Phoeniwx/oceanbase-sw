@@ -189,6 +189,42 @@ int ObIndexUsageInfoMgr::sample(const UpdateFunc &update_func, const DelFunc &de
   return ret;
 }
 
+/*
+if iut disabled, then flush hashmap and clear it
+*/
+int ObIndexUsageInfoMgr::check_disable(const UpdateFunc &update_func, const DelFunc &del_func) {
+  int ret = OB_SUCCESS;
+  if (is_enabled()) {
+    // do nothing
+  } else {
+    int64_t index = 0;
+    int64_t map_size = index_usage_map_.size();
+    ObIndexUsagePairList pair_list(allocator_);
+    for (ObIndexUsageHashMap::iterator it = index_usage_map_.begin(); OB_SUCC(ret) && index < map_size; it++, index++) {
+      bool exist = true;
+      if (OB_SUCC(check_table_exists(it->first.tenant_id_, it->first.index_table_id_, exist)) && !exist) {
+        // delete index not exist
+        if (OB_FAIL(del_func(it->first)) || OB_FAIL(del(it->first))) {
+          LOG_WARN("del index usage failed", K(ret), "index_id", it->first.index_table_id_);
+        }
+      } else {
+        ObIndexUsagePair pair;
+        pair.init(it->first, it->second);
+        pair_list.push_back(pair);
+      }
+      // clear batch at last
+      if (pair_list.size() >= SAMPLE_BATCH_SIZE || index >= map_size - 1) {
+        if (OB_FAIL(update_func(pair_list))) {
+          LOG_WARN("flush index usage batch failed", K(ret));
+        }
+        pair_list.reset();
+      } 
+    }
+    index_usage_map_.clear();
+  }
+  return ret;
+}
+
 int ObIndexUsageInfoMgr::del(ObIndexUsageKey &key) {
   int ret = OB_SUCCESS;
   if (is_inited_ && OB_FAIL(index_usage_map_.erase_refactored(key))) {

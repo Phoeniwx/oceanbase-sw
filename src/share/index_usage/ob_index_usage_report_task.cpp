@@ -46,6 +46,8 @@ void ObIndexUsageReportTask::runTimerTask() {
     del_func.assign([this](ObIndexUsageKey &key) { return this->del_index_usage(key); });
     if (OB_FAIL(mgr_->sample(update_func, del_func))) {
       LOG_WARN("index usage sample failed", K(ret), K(MTL_ID()));
+    } else if (OB_FAIL(mgr_->check_disable(update_func, del_func))) {
+      LOG_WARN("index usage check disable failed", K(ret), K(MTL_ID()));
     }
   }
 }

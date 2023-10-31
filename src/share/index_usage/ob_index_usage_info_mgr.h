@@ -146,7 +146,7 @@ public:
   int update(const uint64_t tenant_id, const uint64_t table_id, const uint64_t index_table_id);
   int del(ObIndexUsageKey &key);
   int sample(const UpdateFunc &update_func, const DelFunc &del_func); // 采样哈希表
-  void release_node(ObIndexUsageInfo *info);                          // 用于task释放内存
+  int check_disable(const UpdateFunc &update_func, const DelFunc &del_func);
 
 private:
   bool is_enabled();
